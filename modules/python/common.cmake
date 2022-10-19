@@ -1,4 +1,5 @@
 # This file is included from a subdirectory
+
 set(PYTHON_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
 ocv_add_module(${MODULE_NAME} BINDINGS PRIVATE_REQUIRED opencv_python_bindings_generator)

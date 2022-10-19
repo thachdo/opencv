@@ -195,7 +195,7 @@ double VideoWriter_IntelMFX::getProperty(int) const
     return 0;
 }
 
-bool VideoWriter_IntelMFX::setProperty(int, double)
+bool VideoWriter_IntelMFX::setProperty(int, int)
 {
     MSG(cerr << "MFX: setProperty() is not implemented" << endl);
     return false;

@@ -83,7 +83,7 @@ public:
     virtual bool open( int index );
     virtual void close();
     virtual double getProperty(int) const CV_OVERRIDE;
-    virtual bool setProperty(int, double) CV_OVERRIDE;
+    virtual bool setProperty(int, int) CV_OVERRIDE;
     virtual bool grabFrame() CV_OVERRIDE;
     virtual IplImage* retrieveFrame(int) CV_OVERRIDE;
     virtual int getCaptureDomain() CV_OVERRIDE
@@ -315,7 +315,7 @@ double CvCaptureCAM_PvAPI::getProperty( int property_id ) const
     return -1.0;
 }
 
-bool CvCaptureCAM_PvAPI::setProperty( int property_id, double value )
+bool CvCaptureCAM_PvAPI::setProperty( int property_id, int value )
 {
     tPvErr error;
 

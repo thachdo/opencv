@@ -3,7 +3,7 @@ Remapping {#tutorial_remap}
 
 @tableofcontents
 
-@prev_tutorial{tutorial_generalized_hough_ballard_guil}
+@prev_tutorial{tutorial_hough_circle}
 @next_tutorial{tutorial_warp_affine}
 
 |    |    |

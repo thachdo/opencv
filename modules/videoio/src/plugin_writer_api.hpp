@@ -84,7 +84,7 @@ struct OpenCV_VideoIO_Writer_Plugin_API_v1_0_api_entries
 
     @note API-CALL 5, API-Version == 0
      */
-    CvResult (CV_API_CALL *Writer_setProperty)(CvPluginWriter handle, int prop, double val);
+    CvResult (CV_API_CALL *Writer_setProperty)(CvPluginWriter handle, int prop, int val);
 
     /** @brief Write frame
 

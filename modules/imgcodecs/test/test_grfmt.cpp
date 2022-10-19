@@ -211,7 +211,7 @@ TEST_P(Imgcodecs_ExtSize, write_imageseq)
 
 const string all_exts[] =
 {
-#if defined(HAVE_PNG) || defined(HAVE_SPNG)
+#ifdef HAVE_PNG
     ".png",
 #endif
 #ifdef HAVE_TIFF

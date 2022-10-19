@@ -38,8 +38,14 @@
 // the use of this software, even if advised of the possibility of such damage.
 //
 //M*/
-
+#include <string.h>
 #include "precomp.hpp"
+
+/*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+#include "cap_dshow.hpp"
+
+/*!!!!!!!---------------------------END-----------------------!!!!!!!! */
 
 #include "opencv2/videoio/registry.hpp"
 #include "videoio_registry.hpp"
@@ -67,7 +73,12 @@ void DefaultDeleter<CvVideoWriter>::operator ()(CvVideoWriter* obj) const { cvRe
 
 
 VideoCapture::VideoCapture() : throwOnFail(false)
-{}
+{
+  #if defined HAVE_LIBV4L || defined HAVE_CAMV4L || defined HAVE_CAMV4L2 || defined HAVE_VIDEOIO
+    CV_TRACE_FUNCTION();
+    open(-1, std::vector<int>());
+  #endif
+}
 
 VideoCapture::VideoCapture(const String& filename, int apiPreference) : throwOnFail(false)
 {
@@ -244,6 +255,7 @@ bool VideoCapture::open(int cameraNum, int apiPreference, const std::vector<int>
             CV_CAPTURE_LOG_DEBUG(NULL,
                                  cv::format("VIDEOIO(%s): trying capture cameraNum=%d ...",
                                             info.name, cameraNum));
+
             CV_Assert(!info.backendFactory.empty());
             const Ptr<IBackend> backend = info.backendFactory->getBackend();
             if (!backend.empty())
@@ -256,6 +268,7 @@ bool VideoCapture::open(int cameraNum, int apiPreference, const std::vector<int>
                         CV_CAPTURE_LOG_DEBUG(NULL,
                                              cv::format("VIDEOIO(%s): created, isOpened=%d",
                                                         info.name, icap->isOpened()));
+
                         if (icap->isOpened())
                         {
                             return true;
@@ -318,6 +331,110 @@ bool VideoCapture::open(int cameraNum, int apiPreference, const std::vector<int>
     return false;
 }
 
+bool VideoCapture::open(int cameraNum, const std::vector<int>& params)
+{
+    CV_TRACE_FUNCTION();
+
+    if (isOpened())
+    {
+        release();
+    }
+    const VideoCaptureParameters parameters(params);
+
+    // if (apiPreference == CAP_ANY)
+    // {
+    //     // interpret preferred interface (0 = autodetect)
+    //     int backendID = (cameraNum / 100) * 100;
+    //     if (backendID)
+    //     {
+    //         cameraNum %= 100;
+    //         apiPreference = backendID;
+    //     }
+    // }
+
+    const std::vector<VideoBackendInfo> backends = cv::videoio_registry::getAvailableBackends_CaptureByIndex();
+    for (size_t i = 0; i < backends.size(); i++)
+    {
+        const VideoBackendInfo& info = backends[i];
+        // if (apiPreference == CAP_ANY || apiPreference == info.id)
+        // {
+            CV_CAPTURE_LOG_DEBUG(NULL,
+                                 cv::format("VIDEOIO(%s): trying capture cameraNum=%d ...",
+                                            info.name, cameraNum));
+
+            CV_Assert(!info.backendFactory.empty());
+            const Ptr<IBackend> backend = info.backendFactory->getBackend();
+            if (!backend.empty())
+            {
+                try
+                {
+                    icap = backend->createCapture(cameraNum,parameters);
+                    if (!icap.empty())
+                    {
+                        CV_CAPTURE_LOG_DEBUG(NULL,
+                                             cv::format("VIDEOIO(%s): created, isOpened=%d",
+                                                        info.name, icap->isOpened()));
+                        if (icap->isOpened())
+                        {
+                            return true;
+                        }
+                        icap.release();
+                    }
+                    else
+                    {
+                        CV_CAPTURE_LOG_DEBUG(NULL,
+                                             cv::format("VIDEOIO(%s): can't create capture",
+                                                        info.name));
+                    }
+                }
+                catch (const cv::Exception& e)
+                {
+                    if (throwOnFail )
+                    {
+                        throw;
+                    }
+                    CV_LOG_ERROR(NULL,
+                                 cv::format("VIDEOIO(%s): raised OpenCV exception:\n\n%s\n",
+                                            info.name, e.what()));
+                }
+                catch (const std::exception& e)
+                {
+                    if (throwOnFail)
+                    {
+                        throw;
+                    }
+                    CV_LOG_ERROR(NULL, cv::format("VIDEOIO(%s): raised C++ exception:\n\n%s\n",
+                                                  info.name, e.what()));
+                }
+                catch (...)
+                {
+                    if (throwOnFail )
+                    {
+                        throw;
+                    }
+                    CV_LOG_ERROR(NULL,
+                                 cv::format("VIDEOIO(%s): raised unknown C++ exception!\n\n",
+                                            info.name));
+                }
+            }
+            else
+            {
+                CV_CAPTURE_LOG_DEBUG(NULL,
+                                     cv::format("VIDEOIO(%s): backend is not available "
+                                                "(plugin is missing, or can't be loaded due "
+                                                "dependencies or it is not compatible)",
+                                                 info.name));
+            }
+        // }
+    }
+
+    if (throwOnFail)
+    {
+        CV_Error_(Error::StsError, ("could not open camera %d", cameraNum));
+    }
+    return false;
+}
+
 bool VideoCapture::isOpened() const
 {
     return !icap.empty() ? icap->isOpened() : false;
@@ -340,8 +457,137 @@ void VideoCapture::release()
     icap.release();
 }
 
+/*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+bool VideoCapture::getDevices(int &devices)
+{
+    /*CV_INSTRUMENT_REGION();
+    bool ret = !icap.empty() ? icap->getDevices(devices) : false;
+    if (!ret && throwOnFail)
+    {
+        CV_Error(Error::StsError, "");
+    }
+    return ret;*/
+    CV_INSTRUMENT_REGION();
+#ifdef HAVE_DSHOW
+    VideoCapture_DShow GD;
+    return GD.getDevices(devices);
+#endif
+#if defined HAVE_LIBV4L || defined HAVE_CAMV4L || defined HAVE_CAMV4L2 || defined HAVE_VIDEOIO
+    if(icap.empty())
+        open(-1, std::vector<int>());
+    return !icap.empty() ? icap->getDevices(devices) : false;
+#endif
+return false;
+}
+
+bool VideoCapture::getDeviceInfo(int index, String &deviceName, String &vid, String &pid, String &devicePath)
+{
+    CV_INSTRUMENT_REGION();
+   /* bool ret = !icap.empty() ? icap->getDeviceInfo(index,deviceName,vid,pid,deviceName) : false;
+    if (!ret && throwOnFail)
+    {
+        CV_Error(Error::StsError, "");
+    }
+    return ret;*/
+#ifdef HAVE_DSHOW
+    VideoCapture_DShow GDI;
+    return GDI.getDeviceInfo(index, deviceName, vid, pid, devicePath);
+#endif
+#if defined HAVE_LIBV4L || defined HAVE_CAMV4L || defined HAVE_CAMV4L2 || defined HAVE_VIDEOIO
+    if(icap.empty())
+        open(-1, std::vector<int>());
+    return !icap.empty() ? icap->getDeviceInfo(index, deviceName, vid, pid, devicePath) : false;
+#endif
+return false;
+}
+
+
+bool VideoCapture::getFormats(int &formats)
+{
+    CV_INSTRUMENT_REGION();
+    bool ret = !icap.empty() ? icap->getFormats(formats) : false;
+    if (!ret && throwOnFail)
+    {
+        CV_Error(Error::StsError, "");
+    }
+    return ret;
+}
+
+
+bool VideoCapture::getFormatType(int formats, String &formatType, int &width, int &height, int &fps)
+{
+    CV_INSTRUMENT_REGION();
+    bool ret = !icap.empty() ? icap->getFormatType(formats,formatType,width,height,fps) : false;
+    if (!ret && throwOnFail)
+    {
+        CV_Error(Error::StsError, "");
+    }
+
+    return ret;
+}
+
+bool VideoCapture::setFormatType(int index)
+{
+#ifdef HAVE_DSHOW
+  CV_TRACE_FUNCTION();
+  String formatType;
+  int width, height, fps;
+  if (!icap.empty())
+  {
+      if (icap->getFormatType(index, formatType, width, height, fps))
+      {
+          if (icap->setProperty(CV_CAP_PROP_FOURCC, index))
+          {
+              if (icap->setProperty(CV_CAP_PROP_FRAME_WIDTH, width))
+              {
+                  if (icap->setProperty(CV_CAP_PROP_FRAME_HEIGHT, height))
+                  {
+                      icap->setProperty(CV_CAP_PROP_FPS, fps);
+                  }
+              }
+          }
+      }
+
+  }
+  return true;
+#endif
+#if defined HAVE_LIBV4L || defined HAVE_CAMV4L || defined HAVE_CAMV4L2 || defined HAVE_VIDEOIO
+    // CV_TRACE_FUNCTION();
+    return icap->setFormatType(index);
+#endif
+
+}
+
+
+bool VideoCapture::get(int propId, int &min, int &max, int &steppingDelta, int &supportedMode, int &currentValue, int &currentMode, int &defaultValue)
+{
+    CV_INSTRUMENT_REGION();
+    bool ret = !icap.empty() ? icap->getVideoProperty(propId,min,max,steppingDelta,supportedMode,currentValue,currentMode,defaultValue) : false;
+    if (!ret && throwOnFail)
+    {
+        CV_Error(Error::StsError, "");
+    }
+    return ret;
+}
+
+bool VideoCapture::set(int propId, int value, int mode)
+{
+    CV_INSTRUMENT_REGION();
+    bool ret = !icap.empty() ? icap->setVideoProperty(propId,value,mode) : false;
+    if (!ret && throwOnFail)
+    {
+        CV_Error(Error::StsError, "");
+    }
+    return ret;
+}
+
+
+/*!!!!!!!---------------------------END-----------------------!!!!!!!! */
+
 bool VideoCapture::grab()
 {
+
     CV_INSTRUMENT_REGION();
     bool ret = !icap.empty() ? icap->grabFrame() : false;
     if (!ret && throwOnFail)

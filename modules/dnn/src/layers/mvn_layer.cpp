@@ -124,7 +124,14 @@ public:
 
     virtual bool supportBackend(int backendId) CV_OVERRIDE
     {
-#ifdef HAVE_INF_ENGINE
+#ifdef HAVE_DNN_IE_NN_BUILDER_2019
+        if (backendId == DNN_BACKEND_INFERENCE_ENGINE_NN_BUILDER_2019)
+        {
+            bool isMyriad = preferableTarget == DNN_TARGET_MYRIAD || preferableTarget == DNN_TARGET_HDDL;
+            return !zeroDev && (!isMyriad || eps <= 1e-7f);
+        }
+#endif
+#ifdef HAVE_DNN_NGRAPH
         if (backendId == DNN_BACKEND_INFERENCE_ENGINE_NGRAPH)
             return true;
 #endif
@@ -380,6 +387,16 @@ public:
         }
     }
 
+#ifdef HAVE_DNN_IE_NN_BUILDER_2019
+    virtual Ptr<BackendNode> initInfEngine(const std::vector<Ptr<BackendWrapper> >&) CV_OVERRIDE
+    {
+        InferenceEngine::Builder::MVNLayer ieLayer(name);
+        ieLayer.setAcrossChannels(acrossChannels);
+        ieLayer.setNormalize(normVariance);
+        ieLayer.setEpsilon(eps);
+        return Ptr<BackendNode>(new InfEngineBackendNode(ieLayer));
+    }
+#endif  // HAVE_DNN_IE_NN_BUILDER_2019
 
 #ifdef HAVE_DNN_NGRAPH
     virtual Ptr<BackendNode> initNgraph(const std::vector<Ptr<BackendWrapper> >& inputs,

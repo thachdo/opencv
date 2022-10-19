@@ -71,7 +71,8 @@
 #include <gst/pbutils/encoding-profile.h>
 //#include <gst/base/gsttypefindhelper.h>
 
-#define CV_WARN(...) CV_LOG_WARNING(NULL, "OpenCV | GStreamer warning: " << __VA_ARGS__)
+//#define CV_WARN(...) CV_LOG_WARNING(NULL, "OpenCV | GStreamer warning: " << __VA_ARGS__)
+#define CV_WARN(...)
 
 #define COLOR_ELEM "videoconvert"
 #define COLOR_ELEM_NAME COLOR_ELEM
@@ -189,19 +190,6 @@ public:
     ~ScopeGuardGstMapInfo()
     {
         gst_buffer_unmap(buf_, info_);
-    }
-};
-
-class ScopeGuardGstVideoFrame
-{
-    GstVideoFrame* frame_;
-public:
-    ScopeGuardGstVideoFrame(GstVideoFrame* frame)
-        : frame_(frame)
-    {}
-    ~ScopeGuardGstVideoFrame()
-    {
-        gst_video_frame_unmap(frame_);
     }
 };
 
@@ -349,7 +337,7 @@ public:
     bool retrieveVideoFrame(int /*unused*/, OutputArray dst);
     bool retrieveAudioFrame(int /*unused*/, OutputArray dst);
     virtual double getProperty(int propId) const CV_OVERRIDE;
-    virtual bool setProperty(int propId, double value) CV_OVERRIDE;
+    virtual bool setProperty(int propId, int value) CV_OVERRIDE;
     virtual bool isOpened() const CV_OVERRIDE { return (bool)pipeline; }
     virtual int getCaptureDomain() CV_OVERRIDE { return cv::CAP_GSTREAMER; }
     bool open(int id, const cv::VideoCaptureParameters& params);
@@ -488,7 +476,7 @@ bool GStreamerCapture::setAudioProperties(const cv::VideoCaptureParameters& para
 /*!
  * \brief CvCapture_GStreamer::grabFrame
  * \return
- * Grabs a sample from the pipeline, awaiting consumation by retrieveFrame.
+ * Grabs a sample from the pipeline, awaiting consumation by retreiveFrame.
  * The pipeline is started if it was not running yet
  */
 bool GStreamerCapture::grabFrame()
@@ -664,28 +652,8 @@ bool GStreamerCapture::retrieveVideoFrame(int, OutputArray dst)
         CV_Error(Error::StsError, "GStreamer: gst_video_info_from_caps() is failed. Can't handle unknown layout");
     }
 
-    // gstreamer expects us to handle the memory at this point
-    // so we can just wrap the raw buffer and be done with it
-    GstBuffer* buf = gst_sample_get_buffer(sample);  // no lifetime transfer
-    if (!buf)
-        return false;
-
-    // at this point, the gstreamer buffer may contain a video meta with special
-    // stride and plane locations. We __must__ consider in order to correctly parse
-    // the data. The gst_video_frame_map will parse the meta for us, or default to
-    // regular strides/offsets if no meta is present.
-    GstVideoFrame frame = {};
-    GstMapFlags flags = static_cast<GstMapFlags>(GST_MAP_READ | GST_VIDEO_FRAME_MAP_FLAG_NO_REF);
-    if (!gst_video_frame_map(&frame, &info, buf, flags))
-    {
-        CV_LOG_ERROR(NULL, "GStreamer: Failed to map GStreamer buffer to system memory");
-        return false;
-    }
-
-    ScopeGuardGstVideoFrame frame_guard(&frame);  // call gst_video_frame_unmap(&frame) on scope leave
-
-    int frame_width = GST_VIDEO_FRAME_COMP_WIDTH(&frame, 0);
-    int frame_height = GST_VIDEO_FRAME_COMP_HEIGHT(&frame, 0);
+    int frame_width = GST_VIDEO_INFO_WIDTH(&info);
+    int frame_height = GST_VIDEO_INFO_HEIGHT(&info);
     if (frame_width <= 0 || frame_height <= 0)
     {
         CV_LOG_ERROR(NULL, "GStreamer: Can't query frame size from GStreamer sample");
@@ -707,6 +675,19 @@ bool GStreamerCapture::retrieveVideoFrame(int, OutputArray dst)
     }
     std::string name = toLowerCase(std::string(name_));
 
+    // gstreamer expects us to handle the memory at this point
+    // so we can just wrap the raw buffer and be done with it
+    GstBuffer* buf = gst_sample_get_buffer(sample);  // no lifetime transfer
+    if (!buf)
+        return false;
+    GstMapInfo map_info = {};
+    if (!gst_buffer_map(buf, &map_info, GST_MAP_READ))
+    {
+        CV_LOG_ERROR(NULL, "GStreamer: Failed to map GStreamer buffer to system memory");
+        return false;
+    }
+    ScopeGuardGstMapInfo map_guard(buf, &map_info);  // call gst_buffer_unmap(buf, &map_info) on scope leave
+
     // we support these types of data:
     //     video/x-raw, format=BGR   -> 8bit, 3 channels
     //     video/x-raw, format=GRAY8 -> 8bit, 1 channel
@@ -723,11 +704,10 @@ bool GStreamerCapture::retrieveVideoFrame(int, OutputArray dst)
     //     video/x-raw, format={BGRA, RGBA, BGRx, RGBx} -> 8bit, 4 channels
     // bayer data is never decoded, the user is responsible for that
     Size sz = Size(frame_width, frame_height);
-    guint n_planes = GST_VIDEO_FRAME_N_PLANES(&frame);
-
+    guint n_planes = GST_VIDEO_INFO_N_PLANES(&info);
     if (name == "video/x-raw")
     {
-        const gchar* format_ = frame.info.finfo->name;
+        const gchar* format_ = gst_structure_get_string(structure, "format");
         if (!format_)
         {
             CV_LOG_ERROR(NULL, "GStreamer: Can't query 'format' of 'video/x-raw'");
@@ -738,83 +718,97 @@ bool GStreamerCapture::retrieveVideoFrame(int, OutputArray dst)
         if (format == "BGR")
         {
             CV_CheckEQ((int)n_planes, 1, "");
-            size_t step = GST_VIDEO_FRAME_PLANE_STRIDE(&frame, 0);
+            size_t step = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
             CV_CheckGE(step, (size_t)frame_width * 3, "");
-            Mat src(sz, CV_8UC3, GST_VIDEO_FRAME_PLANE_DATA(&frame, 0), step);
+            Mat src(sz, CV_8UC3, map_info.data + GST_VIDEO_INFO_PLANE_OFFSET(&info, 0), step);
             src.copyTo(dst);
             return true;
         }
         else if (format == "GRAY8")
         {
             CV_CheckEQ((int)n_planes, 1, "");
-            size_t step = GST_VIDEO_FRAME_PLANE_STRIDE(&frame, 0);
+            size_t step = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
             CV_CheckGE(step, (size_t)frame_width, "");
-            Mat src(sz, CV_8UC1, GST_VIDEO_FRAME_PLANE_DATA(&frame, 0), step);
+            Mat src(sz, CV_8UC1, map_info.data + GST_VIDEO_INFO_PLANE_OFFSET(&info, 0), step);
             src.copyTo(dst);
             return true;
         }
         else if (format == "GRAY16_LE" || format == "GRAY16_BE")
         {
             CV_CheckEQ((int)n_planes, 1, "");
-            size_t step = GST_VIDEO_FRAME_PLANE_STRIDE(&frame, 0);
+            size_t step = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
             CV_CheckGE(step, (size_t)frame_width, "");
-            Mat src(sz, CV_16UC1, GST_VIDEO_FRAME_PLANE_DATA(&frame, 0), step);
+            Mat src(sz, CV_16UC1, map_info.data + GST_VIDEO_INFO_PLANE_OFFSET(&info, 0), step);
             src.copyTo(dst);
             return true;
         }
         else if (format == "BGRA" || format == "RGBA" || format == "BGRX" || format == "RGBX")
         {
             CV_CheckEQ((int)n_planes, 1, "");
-            size_t step = GST_VIDEO_FRAME_PLANE_STRIDE(&frame, 0);
+            size_t step = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
             CV_CheckGE(step, (size_t)frame_width, "");
-            Mat src(sz, CV_8UC4, GST_VIDEO_FRAME_PLANE_DATA(&frame, 0), step);
+            Mat src(sz, CV_8UC4, map_info.data + GST_VIDEO_INFO_PLANE_OFFSET(&info, 0), step);
             src.copyTo(dst);
             return true;
         }
         else if (format == "UYVY" || format == "YUY2" || format == "YVYU")
         {
             CV_CheckEQ((int)n_planes, 1, "");
-            size_t step = GST_VIDEO_FRAME_PLANE_STRIDE(&frame, 0);
+            size_t step = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
             CV_CheckGE(step, (size_t)frame_width * 2, "");
-            Mat src(sz, CV_8UC2, GST_VIDEO_FRAME_PLANE_DATA(&frame, 0), step);
+            Mat src(sz, CV_8UC2, map_info.data + GST_VIDEO_INFO_PLANE_OFFSET(&info, 0), step);
             src.copyTo(dst);
             return true;
         }
         else if (format == "NV12" || format == "NV21")
         {
             CV_CheckEQ((int)n_planes, 2, "");
-            size_t stepY = GST_VIDEO_FRAME_PLANE_STRIDE(&frame, 0);
+            size_t stepY = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
             CV_CheckGE(stepY, (size_t)frame_width, "");
-            size_t stepUV = GST_VIDEO_FRAME_PLANE_STRIDE(&frame, 1);
+            size_t stepUV = GST_VIDEO_INFO_PLANE_STRIDE(&info, 1);
             CV_CheckGE(stepUV, (size_t)frame_width, "");
-
-            dst.create(Size(frame_width, frame_height * 3 / 2), CV_8UC1);
-            Mat dst_ = dst.getMat();
-            Mat srcY(sz, CV_8UC1, GST_VIDEO_FRAME_PLANE_DATA(&frame,0), stepY);
-            Mat srcUV(Size(frame_width, frame_height / 2), CV_8UC1, GST_VIDEO_FRAME_PLANE_DATA(&frame,1), stepUV);
-            srcY.copyTo(dst_(Rect(0, 0, frame_width, frame_height)));
-            srcUV.copyTo(dst_(Rect(0, frame_height, frame_width, frame_height / 2)));
+            size_t offsetY = GST_VIDEO_INFO_PLANE_OFFSET(&info, 0);
+            size_t offsetUV = GST_VIDEO_INFO_PLANE_OFFSET(&info, 1);
+            if (stepY != stepUV || (offsetUV - offsetY) != (stepY * frame_height))
+            {
+                dst.create(Size(frame_width, frame_height * 3 / 2), CV_8UC1);
+                Mat dst_ = dst.getMat();
+                Mat srcY(sz, CV_8UC1, map_info.data + offsetY, stepY);
+                Mat srcUV(Size(frame_width, frame_height / 2), CV_8UC1, map_info.data + offsetUV, stepUV);
+                srcY.copyTo(dst_(Rect(0, 0, frame_width, frame_height)));
+                srcUV.copyTo(dst_(Rect(0, frame_height, frame_width, frame_height / 2)));
+            }
+            else
+            {
+                Mat src(Size(frame_width, frame_height * 3 / 2), CV_8UC1, map_info.data + offsetY, stepY);
+                src.copyTo(dst);
+            }
             return true;
         }
         else if (format == "YV12" || format == "I420")
         {
             CV_CheckEQ((int)n_planes, 3, "");
-            size_t step0 = GST_VIDEO_FRAME_PLANE_STRIDE(&frame, 0);
+            size_t step0 = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
             CV_CheckGE(step0, (size_t)frame_width, "");
-            size_t step1 = GST_VIDEO_FRAME_PLANE_STRIDE(&frame, 1);
+            size_t step1 = GST_VIDEO_INFO_PLANE_STRIDE(&info, 1);
             CV_CheckGE(step1, (size_t)frame_width / 2, "");
-            size_t step2 = GST_VIDEO_FRAME_PLANE_STRIDE(&frame, 2);
+            size_t step2 = GST_VIDEO_INFO_PLANE_STRIDE(&info, 2);
             CV_CheckGE(step2, (size_t)frame_width / 2, "");
 
-            dst.create(Size(frame_width, frame_height * 3 / 2), CV_8UC1);
-            Mat dst_ = dst.getMat();
-            Mat srcY(sz, CV_8UC1, GST_VIDEO_FRAME_PLANE_DATA(&frame,0), step0);
-            Size sz2(frame_width / 2, frame_height / 2);
-            Mat src1(sz2, CV_8UC1, GST_VIDEO_FRAME_PLANE_DATA(&frame,1), step1);
-            Mat src2(sz2, CV_8UC1, GST_VIDEO_FRAME_PLANE_DATA(&frame,2), step2);
-            srcY.copyTo(dst_(Rect(0, 0, frame_width, frame_height)));
-            src1.copyTo(Mat(sz2, CV_8UC1, dst_.ptr<uchar>(frame_height)));
-            src2.copyTo(Mat(sz2, CV_8UC1, dst_.ptr<uchar>(frame_height) + src1.total()));
+            size_t offset0 = GST_VIDEO_INFO_PLANE_OFFSET(&info, 0);
+            size_t offset1 = GST_VIDEO_INFO_PLANE_OFFSET(&info, 1);
+            size_t offset2 = GST_VIDEO_INFO_PLANE_OFFSET(&info, 2);
+            {
+                dst.create(Size(frame_width, frame_height * 3 / 2), CV_8UC1);
+                Mat dst_ = dst.getMat();
+                Mat srcY(sz, CV_8UC1, map_info.data + offset0, step0);
+                Size sz2(frame_width / 2, frame_height / 2);
+                Mat src1(sz2, CV_8UC1, map_info.data + offset1, step1);
+                Mat src2(sz2, CV_8UC1, map_info.data + offset2, step2);
+                srcY.copyTo(dst_(Rect(0, 0, frame_width, frame_height)));
+                src1.copyTo(Mat(sz2, CV_8UC1, dst_.ptr<uchar>(frame_height)));
+                src2.copyTo(Mat(sz2, CV_8UC1, dst_.ptr<uchar>(frame_height) + src1.total()));
+            }
             return true;
         }
         else
@@ -825,14 +819,14 @@ bool GStreamerCapture::retrieveVideoFrame(int, OutputArray dst)
     else if (name == "video/x-bayer")
     {
         CV_CheckEQ((int)n_planes, 0, "");
-        Mat src = Mat(sz, CV_8UC1, frame.map[0].data);
+        Mat src = Mat(sz, CV_8UC1, map_info.data);
         src.copyTo(dst);
         return true;
     }
     else if (name == "image/jpeg")
     {
         CV_CheckEQ((int)n_planes, 0, "");
-        Mat src = Mat(Size(frame.map[0].size, 1), CV_8UC1, frame.map[0].data);
+        Mat src = Mat(Size(map_info.size, 1), CV_8UC1, map_info.data);
         src.copyTo(dst);
         return true;
     }
@@ -1581,7 +1575,7 @@ double GStreamerCapture::getProperty(int propId) const
  * Sets the desired property id with val. If the pipeline is running,
  * it is briefly stopped and started again after the property was set
  */
-bool GStreamerCapture::setProperty(int propId, double value)
+bool GStreamerCapture::setProperty(int propId, int value)
 {
     const GstSeekFlags flags = (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE);
 

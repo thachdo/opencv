@@ -88,11 +88,23 @@ public:
         close();
     }
     virtual double getProperty(int) const CV_OVERRIDE;
-    virtual bool setProperty(int, double) CV_OVERRIDE;
+    virtual bool setProperty(int, int) CV_OVERRIDE;
     virtual bool grabFrame() CV_OVERRIDE;
     virtual bool retrieveFrame(int, OutputArray) CV_OVERRIDE;
     virtual bool isOpened() const CV_OVERRIDE;
     virtual int getCaptureDomain() /*const*/ CV_OVERRIDE { return cv::CAP_IMAGES; }
+
+    /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+    virtual bool getDevices(int &devices) CV_OVERRIDE;
+    virtual bool getDeviceInfo(int index, String &deviceName, String &vid, String &pid, String &devicePath) CV_OVERRIDE;
+    virtual bool getFormats(int &formats) CV_OVERRIDE;
+    virtual bool getFormatType(int formats, String &formatType, int &width, int &height, int &fps) CV_OVERRIDE;
+    virtual bool setFormatType(int) CV_OVERRIDE;
+    virtual bool getVideoProperty(int Property, int &min, int &max, int &steppingDelta, int &supportedMode, int &currentValue, int &currentMode, int &defaultValue) CV_OVERRIDE;
+    virtual bool setVideoProperty(int settings, int value, int mode) CV_OVERRIDE;
+
+    /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
 
     bool open(const String&);
     void close();
@@ -110,6 +122,78 @@ void CvCapture_Images::close()
 {
     init();
 }
+
+/*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+bool CvCapture_Images::getDevices(int &devices)
+{
+    std::cout << "CvCapture_Images getDevices Currently this API for MotionJpegCapture is not supported" << std::endl;
+    devices = 0;
+    return false;
+}
+
+bool CvCapture_Images::getDeviceInfo(int index, String &deviceName, String &vid, String &pid, String &devicePath)
+{
+    std::cout << "CvCapture_Images getDeviceInfo Currently this API for MotionJpegCapture is not supported" << std::endl;
+    if (index == 0)
+    {
+        deviceName = "No devices";
+        vid = "No Vid";
+        pid = "No Pid";
+        devicePath = "Not Detected";
+    }
+    return false;
+}
+
+bool CvCapture_Images::getFormats(int &formats)
+{
+    std::cout << "CvCapture_Images getFormats Currently this API for MotionJpegCapture is not supported" << std::endl;
+    formats = 0;
+    return false;
+}
+
+bool CvCapture_Images::getFormatType(int formats, String &formatType, int &width, int &height, int &fps)
+{
+    std::cout << "CvCapture_Images getFormatType Currently this API for MotionJpegCapture is not supported" << std::endl;
+    if (formats == 0)
+    {
+        formatType = "Not Detected";
+        width = 0;
+        height = 0;
+        fps = 0;
+    }
+    return false;
+}
+
+
+bool CvCapture_Images::setFormatType(int index)
+{
+    std::cout << "CvCapture_Images setFormatType Currently this API for MotionJpegCapture is not supported" << std::endl;
+
+    return false;
+}
+
+
+bool CvCapture_Images::getVideoProperty(int Property, int &min, int &max, int &steppingDelta, int &supportedMode, int &currentValue, int &currentMode, int &defaultValue)
+{
+    std::cout << "CvCapture_Images getVideoProperty Currently this API for MotionJpegCapture is not supported" << std::endl;
+    if (Property == 0)
+    {
+        min = 0, max = 0, steppingDelta = 0, supportedMode = 0, currentValue = 0, currentMode = 0, defaultValue = 0;
+    }
+    return false;
+}
+
+bool CvCapture_Images::setVideoProperty(int settings, int value, int mode)
+{
+    std::cout << "CvCapture_Images setVideoProperty Currently this API for MotionJpegCapture is not supported" << std::endl;
+    if (settings == 0 && value == 0 && mode == 0)
+    {
+    }
+    return false;
+}
+
+/*!!!!!!!---------------------------END-----------------------!!!!!!!! */
 
 bool CvCapture_Images::grabFrame()
 {
@@ -165,7 +249,7 @@ double CvCapture_Images::getProperty(int id) const
     return 0;
 }
 
-bool CvCapture_Images::setProperty(int id, double value)
+bool CvCapture_Images::setProperty(int id, int value)
 {
     switch(id)
     {
@@ -191,7 +275,7 @@ bool CvCapture_Images::setProperty(int id, double value)
             CV_WARN("seeking to negative positions does not work - clamping");
             value = 0;
         }
-        currentframe = cvRound((length - 1) * value);
+        currentframe = (int)((length - 1) * value);
         if (currentframe != 0)
             grabbedInOpen = false; // grabbed frame is not valid anymore
         return true;
@@ -360,7 +444,7 @@ public:
 
     virtual bool open( const char* _filename );
     virtual void close();
-    virtual bool setProperty( int, double ); // FIXIT doesn't work: IVideoWriter interface only!
+    virtual bool setProperty( int, int ); // FIXIT doesn't work: IVideoWriter interface only!
     virtual bool writeFrame( const IplImage* ) CV_OVERRIDE;
 
     int getCaptureDomain() const CV_OVERRIDE { return cv::CAP_IMAGES; }
@@ -418,7 +502,7 @@ bool CvVideoWriter_Images::open( const char* _filename )
 }
 
 
-bool CvVideoWriter_Images::setProperty( int id, double value )
+bool CvVideoWriter_Images::setProperty( int id, int value )
 {
     if (id >= cv::CAP_PROP_IMAGES_BASE && id < cv::CAP_PROP_IMAGES_LAST)
     {

@@ -11,8 +11,6 @@ Implementation of Tensorflow models parser
 
 #include "../precomp.hpp"
 
-#include <opencv2/core/utils/fp_control_utils.hpp>
-
 #include <opencv2/core/utils/logger.defines.hpp>
 #include <opencv2/dnn/shape_utils.hpp>
 #undef CV_LOG_STRIP_LEVEL
@@ -515,7 +513,6 @@ class TFLayerHandler;
 
 class TFImporter
 {
-    FPDenormalsIgnoreHintScope fp_denormals_ignore_scope;
 public:
     TFImporter(Net& net, const char *model, const char *config = NULL);
     TFImporter(Net& net, const char *dataModel, size_t lenModel,
@@ -568,7 +565,7 @@ private:
     typedef std::map<std::string, TFImporterNodeParser> DispatchMap;
 
     const DispatchMap dispatch;
-    static DispatchMap buildDispatchMap();
+    static const DispatchMap buildDispatchMap();
 
     void parseConvolution        (tensorflow::GraphDef& net, const tensorflow::NodeDef& layer, LayerParams& layerParams);
     void parseBias               (tensorflow::GraphDef& net, const tensorflow::NodeDef& layer, LayerParams& layerParams);
@@ -645,7 +642,7 @@ protected:
     TFImporter* importer;
 };
 
-TFImporter::DispatchMap TFImporter::buildDispatchMap()
+const TFImporter::DispatchMap TFImporter::buildDispatchMap()
 {
     static DispatchMap dispatch;
     dispatch["Conv2D"] = dispatch["SpaceToBatchND"] = dispatch["DepthwiseConv2dNative"] =
@@ -1097,9 +1094,6 @@ void TFImporter::parseReshape(tensorflow::GraphDef& net, const tensorflow::NodeD
             std::swap(*newShape.ptr<int32_t>(0, 1), *newShape.ptr<int32_t>(0, 2));
             hasSwap = true;
         }
-
-        bool changedType{false};
-
         if (inpLayout == DATA_LAYOUT_NHWC)
         {
             if (newShapeSize >= 2 || newShape.at<int>(1) == 1)
@@ -1113,28 +1107,23 @@ void TFImporter::parseReshape(tensorflow::GraphDef& net, const tensorflow::NodeD
                 else
                 {
                     inpLayout = DATA_LAYOUT_NHWC;
-                    changedType = newShapeSize == 4 && !hasSwap;
                 }
             }
         }
         layerParams.set("dim", DictValue::arrayInt<int*>(newShape.ptr<int>(), newShapeSize));
 
-        std::string setName = changedType ? name + "/realReshape" : name;
-
-        int id = dstNet.addLayer(setName, "Reshape", layerParams);
-        layer_id[setName] = id;
+        int id = dstNet.addLayer(name, "Reshape", layerParams);
+        layer_id[name] = id;
 
         // one input only
         connect(layer_id, dstNet, inpId, id, 0);
-        inpId = Pin(setName);
+        inpId = Pin(name);
 
         if ((inpLayout == DATA_LAYOUT_NHWC || inpLayout == DATA_LAYOUT_UNKNOWN || inpLayout == DATA_LAYOUT_PLANAR) &&
             newShapeSize == 4 && !hasSwap)
         {
             int order[] = {0, 3, 1, 2};  // Transform back to OpenCV's NCHW.
-
-            setName = changedType ? name : name + "/nchw";
-            addPermuteLayer(order, setName, inpId);
+            addPermuteLayer(order, name + "/nchw", inpId);
             inpLayout = DATA_LAYOUT_NCHW;
         }
 
@@ -1689,8 +1678,10 @@ void TFImporter::parseStridedSlice(tensorflow::GraphDef& net, const tensorflow::
     int end_mask = getLayerAttr(layer, "end_mask").i();
     for (int i = 0; i < num; ++i)
     {
+        if (ends.at<int>(i) < 0)
+            ends.at<int>(i) -= 1;
         if (end_mask & (1 << i))
-            ends.at<int>(i) = INT_MAX;
+            ends.at<int>(i) = -1;
         if (strides.at<int>(i) != 1)
             CV_Error(Error::StsNotImplemented,
                      format("StridedSlice with stride %d", strides.at<int>(i)));
@@ -1988,16 +1979,15 @@ void TFImporter::parseConv2DBackpropInput(tensorflow::GraphDef& net, const tenso
     int64_t pads[8];
     bool explicit_pads = getExplicitPadding(layerParams, layer, pads);
     int64_t begs[4] = {};
-    int64_t ends[4] = {};
+    int64_t ends[4] = {-1, -1, -1, -1};
     if (explicit_pads)
     {
         name += "/deconv";
         layerParams.set("pad_mode", "VALID");
-        ends[0] = ends[1] = INT_MAX;
         for (int i = 2; i < 4; ++i) // begins=[0, 0, a, b], ends=[-1, -1, c, d]
         {
             begs[i] = pads[2*i];
-            ends[i] = -pads[2*i + 1];
+            ends[i] = -1 - pads[2*i + 1];
         }
     }
 
@@ -2017,8 +2007,8 @@ void TFImporter::parseConv2DBackpropInput(tensorflow::GraphDef& net, const tenso
     const int strideX = layerParams.get<int>("stride_w");
     Mat outShape = getTensorContent(getConstBlob(layer, value_id, 0));
     int shift = (getDataLayout(layer) == DATA_LAYOUT_NCHW);
-    const int outH = outShape.at<int>(1 + shift) + begs[2] - ends[2];
-    const int outW = outShape.at<int>(2 + shift) + begs[3] - ends[3];
+    const int outH = outShape.at<int>(1 + shift) + begs[2] - 1 - ends[2];
+    const int outW = outShape.at<int>(2 + shift) + begs[3] - 1 - ends[3];
     if (layerParams.get<String>("pad_mode") == "SAME")
     {
         layerParams.set("adj_w", (outW - 1) % strideX);
@@ -2548,8 +2538,6 @@ void TFImporter::parsePack(tensorflow::GraphDef& net, const tensorflow::NodeDef&
     int dim = (int)getLayerAttr(layer, "axis").i();
     if (dim != 0)
         CV_Error(Error::StsNotImplemented, "Unsupported mode of pack operation.");
-
-    data_layouts[name] = DATA_LAYOUT_UNKNOWN;
 
     CV_Assert(hasLayerAttr(layer, "N"));
     int num = (int)getLayerAttr(layer, "N").i();
@@ -3102,8 +3090,10 @@ void TFImporter::populateNet()
     {
         const tensorflow::NodeDef& layer = net.node(li);
 
-        CV_LOG_DEBUG(NULL, "DNN/TF: processing node (" << li << "/" << layersSize << ") with " << layer.input_size() << " inputs: "
-                                                           << cv::format("[%s]:(%s)", layer.op().c_str(), layer.name().c_str()));
+        const std::string name = layer.name();
+        const std::string type = layer.op();
+        const int ninputs = layer.input_size();
+        CV_LOG_DEBUG(NULL, "DNN/TF: (" << li << "/" << layersSize << ") Parse layer " << name << " @ " << type << " with " << ninputs << " inputs");
 
         parseNode(layer);
     }

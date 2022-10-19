@@ -39,14 +39,8 @@
 //
 //M*/
 
-#if !defined(BUILD_PLUGIN)
-#include "cvconfig.h"
-#else
-#include <opencv2/core/cvdef.h>
-#undef __OPENCV_BUILD  // allow public API only
-#endif
-
 #include <opencv2/core.hpp>
+#include "cvconfig.h"
 
 #ifndef CV_OCL4DNN
 #define CV_OCL4DNN 0
@@ -71,15 +65,6 @@
 #else
 #undef HAVE_CUDA
 #endif
-
-#include <numeric>
-#include <memory>
-#include <algorithm>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <set>
-#include <iterator>
 
 #include <opencv2/core/ocl.hpp>
 #include <opencv2/core/opencl/ocl_defs.hpp>

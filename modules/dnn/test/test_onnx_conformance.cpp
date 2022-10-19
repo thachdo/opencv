@@ -666,15 +666,11 @@ static const TestCase testConformanceConfig[] = {
     {"test_scatter_elements_with_axis", 3, 1},
     {"test_scatter_elements_with_duplicate_indices", 3, 1},
     {"test_scatter_elements_with_negative_indices", 3, 1},
-    {"test_scatter_elements_with_reduction_max", 3, 1},
-    {"test_scatter_elements_with_reduction_min", 3, 1},
     {"test_scatter_elements_without_axis", 3, 1},
     {"test_scatter_with_axis", 3, 1},
     {"test_scatter_without_axis", 3, 1},
     {"test_scatternd", 3, 1},
     {"test_scatternd_add", 3, 1},
-    {"test_scatternd_max", 3, 1},
-    {"test_scatternd_min", 3, 1},
     {"test_scatternd_multiply", 3, 1},
     {"test_sce_NCd1_mean_weight_negative_ii", 3, 1},
     {"test_sce_NCd1_mean_weight_negative_ii_expanded", 3, 1},
@@ -958,7 +954,7 @@ public:
 
         if (target == DNN_TARGET_CUDA_FP16 || target == DNN_TARGET_OPENCL_FP16 || target == DNN_TARGET_MYRIAD)
         {
-            default_l1 = 7e-3;
+            default_l1 = 4e-3;
             default_lInf = 2e-2;
         }
         else
@@ -1185,10 +1181,10 @@ TEST_P(Test_ONNX_conformance, Layer_Test)
     }
 
     std::vector<std::string> layerNames = net.getUnconnectedOutLayersNames();
-    std::vector<Mat> outputs;
+    std::vector< std::vector<Mat> > outputs_;
     try
     {
-        net.forward(outputs, layerNames);
+        net.forward(outputs_, layerNames);
     }
     catch (...)
     {
@@ -1196,7 +1192,8 @@ TEST_P(Test_ONNX_conformance, Layer_Test)
         applyTestTag(CV_TEST_TAG_DNN_ERROR_FORWARD);
         throw;
     }
-    ASSERT_GE(outputs.size(), 1);
+    ASSERT_GE(outputs_.size(), 1);
+    const std::vector<Mat>& outputs = outputs_[0];
 
     if (checkLayersFallbacks && checkFallbacks(net))
     {

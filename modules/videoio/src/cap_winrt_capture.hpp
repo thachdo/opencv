@@ -51,7 +51,7 @@ namespace cv {
 
         // from base class IVideoCapture
         virtual double getProperty(int) { return 0; }
-        virtual bool setProperty(int, double);
+        virtual bool setProperty(int, int);
         virtual bool grabFrame();
         virtual bool retrieveFrame(int channel, cv::OutputArray outArray);
 

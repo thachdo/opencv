@@ -123,7 +123,6 @@ enum VideoCaptureAPIs {
        CAP_INTEL_MFX    = 2300,         //!< Intel MediaSDK
        CAP_XINE         = 2400,         //!< XINE engine (Linux)
        CAP_UEYE         = 2500,         //!< uEye Camera API
-       CAP_OBSENSOR     = 2600,         //!< For Orbbec 3D-Sensor device/module (Astra+, Femto)
      };
 
 /** @brief cv::VideoCapture generic properties identifier.
@@ -203,8 +202,6 @@ enum VideoCaptureProperties {
        CAP_PROP_AUDIO_SYNCHRONIZE = 66, //!< (open, read) Enables audio synchronization.
        CAP_PROP_LRF_HAS_KEY_FRAME = 67, //!< FFmpeg back-end only - Indicates whether the Last Raw Frame (LRF), output from VideoCapture::read() when VideoCapture is initialized with VideoCapture::open(CAP_FFMPEG, {CAP_PROP_FORMAT, -1}) or VideoCapture::set(CAP_PROP_FORMAT,-1) is called before the first call to VideoCapture::read(), contains encoded data for a key frame.
        CAP_PROP_CODEC_EXTRADATA_INDEX = 68, //!< Positive index indicates that returning extra data is supported by the video back end.  This can be retrieved as cap.retrieve(data, <returned index>).  E.g. When reading from a h264 encoded RTSP stream, the FFmpeg backend could return the SPS and/or PPS if available (if sent in reply to a DESCRIBE request), from calls to cap.retrieve(data, <returned index>).
-       CAP_PROP_FRAME_TYPE = 69, //!< (read-only) FFmpeg back-end only - Frame type ascii code (73 = 'I', 80 = 'P', 66 = 'B' or 63 = '?' if unknown) of the most recently read frame.
-       CAP_PROP_N_THREADS = 70, //!< (**open-only**) Set the maximum number of threads to use. Use 0 to use as many threads as CPU cores (applicable for FFmpeg back-end only).
 #ifndef CV_DOXYGEN
        CV__CAP_PROP_LATEST
 #endif
@@ -656,35 +653,6 @@ enum { CAP_PROP_IMAGES_BASE = 18000,
 
 //! @} Images
 
-/** @name OBSENSOR (for Orbbec 3D-Sensor device/module )
-    @{
-*/
-//! OBSENSOR data given from image generator
-enum VideoCaptureOBSensorDataType{
-    CAP_OBSENSOR_DEPTH_MAP = 0, //!< Depth values in mm (CV_16UC1)
-    CAP_OBSENSOR_BGR_IMAGE = 1, //!< Data given from BGR stream generator
-    CAP_OBSENSOR_IR_IMAGE = 2   //!< Data given from IR stream generator(CV_16UC1)
-};
-
-//! OBSENSOR stream generator
-enum VideoCaptureOBSensorGenerators{
-    CAP_OBSENSOR_DEPTH_GENERATOR = 1 << 29,
-    CAP_OBSENSOR_IMAGE_GENERATOR = 1 << 28,
-    CAP_OBSENSOR_IR_GENERATOR    = 1 << 27,
-    CAP_OBSENSOR_GENERATORS_MASK = CAP_OBSENSOR_DEPTH_GENERATOR + CAP_OBSENSOR_IMAGE_GENERATOR + CAP_OBSENSOR_IR_GENERATOR
-};
-
-//!OBSENSOR properties
-enum VideoCaptureOBSensorProperties{
-    // INTRINSIC
-    CAP_PROP_OBSENSOR_INTRINSIC_FX=26001,
-    CAP_PROP_OBSENSOR_INTRINSIC_FY=26002,
-    CAP_PROP_OBSENSOR_INTRINSIC_CX=26003,
-    CAP_PROP_OBSENSOR_INTRINSIC_CY=26004,
-};
-
-//! @} OBSENSOR
-
 //! @} videoio_flags_others
 
 
@@ -772,6 +740,8 @@ public:
     */
     virtual ~VideoCapture();
 
+    CV_WRAP virtual bool open(int cameraNum, const std::vector<int>& params);
+
     /** @brief  Opens a video file or a capturing device or an IP video stream for video capturing.
 
     @overload
@@ -783,7 +753,7 @@ public:
      */
     CV_WRAP virtual bool open(const String& filename, int apiPreference = CAP_ANY);
 
-    /** @brief  Opens a video file or a capturing device or an IP video stream for video capturing with API Preference and parameters
+    /** @brief  Opens a camera for video capturing
 
     @overload
 
@@ -807,7 +777,7 @@ public:
     */
     CV_WRAP virtual bool open(int index, int apiPreference = CAP_ANY);
 
-    /** @brief  Opens a camera for video capturing with API Preference and parameters
+    /** @brief Returns true if video capturing has been initialized already.
 
     @overload
 
@@ -826,6 +796,42 @@ public:
     true.
      */
     CV_WRAP virtual bool isOpened() const;
+
+
+    /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+    /** @brief Gets Total Number of Devices
+
+    The C function gets the total Number of Devices Connected
+    */
+    CV_WRAP virtual bool getDevices(CV_OUT int &devices);
+
+    /** @brief Gets Specific Device Information
+
+    The C function gets the information about the Camera Device such as Device Name, VendorID, ProductID and DevicePath.
+    */
+    CV_WRAP virtual bool getDeviceInfo(int index, CV_OUT String &deviceName, CV_OUT String &vid, CV_OUT String &pid, CV_OUT String &devicePath);
+
+    /** @brief Gets Total Number of Formats
+
+    The C function gets the total number of video formats supported by the Camera Device
+    */
+    CV_WRAP virtual bool getFormats(CV_OUT int &formats);
+
+    /** @brief Gets the Video Formats
+
+    The C function also gets the Video resolutions, fps supported by the particular Camera Device
+    */
+    CV_WRAP virtual bool getFormatType(int formats, CV_OUT String &formatType, CV_OUT int &width, CV_OUT int &height, CV_OUT int &fps);
+
+    /** @brief Sets Video Format to the Camera Device
+
+    The C function also sets the video resolution, fps to the Camera Device
+    */
+    CV_WRAP virtual bool setFormatType(int index);
+
+
+    /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
 
     /** @brief Closes video file or capturing device.
 
@@ -912,6 +918,19 @@ public:
      */
     CV_WRAP virtual bool set(int propId, double value);
 
+
+    /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+    /** @brief  Sets a property in the VideoCapture
+
+    @overload
+
+    Sets the Camera Properties such brightness, contrast, etc., with a particular mode Selection
+    */
+    CV_WRAP virtual bool set(int propId, int value, int mode);
+
+    /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
+
     /** @brief Returns the specified VideoCapture property
 
     @param propId Property identifier from cv::VideoCaptureProperties (eg. cv::CAP_PROP_POS_MSEC, cv::CAP_PROP_POS_FRAMES, ...)
@@ -929,7 +948,21 @@ public:
     driver and API Backend
 
     */
+
     CV_WRAP virtual double get(int propId) const;
+
+    /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+    /** @brief  Gets the Camera Properties such as brightness, contrast, hue, etc.,
+
+    @overload
+
+    Gets the Particular Property's Minimum, Maximum, SupportedMode, CurrentMode, CurrentValue, DefaultValue
+    */
+
+    CV_WRAP virtual bool get(int propId, CV_IN_OUT int &min, CV_IN_OUT int &max, CV_IN_OUT int &steppingDelta, CV_IN_OUT int &supportedMode, CV_IN_OUT int &currentValue, CV_IN_OUT int &currentMode, CV_IN_OUT int &defaultValue);
+
+    /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
 
     /** @brief Returns used backend API name
 
@@ -1004,11 +1037,9 @@ public:
     /** @overload
     @param filename Name of the output video file.
     @param fourcc 4-character code of codec used to compress the frames. For example,
-    VideoWriter::fourcc('P','I','M','1') is a MPEG-1 codec, VideoWriter::fourcc('M','J','P','G')
-    is a motion-jpeg codec etc. List of codes can be obtained at
-    [MSDN](https://docs.microsoft.com/en-us/windows/win32/medfound/video-fourccs) page
-    or with this [archived page](https://web.archive.org/web/20220316062600/http://www.fourcc.org/codecs.php)
-    of the fourcc site for a more complete list). FFMPEG backend with MP4 container natively uses
+    VideoWriter::fourcc('P','I','M','1') is a MPEG-1 codec, VideoWriter::fourcc('M','J','P','G') is a
+    motion-jpeg codec etc. List of codes can be obtained at [Video Codecs by
+    FOURCC](http://www.fourcc.org/codecs.php) page. FFMPEG backend with MP4 container natively uses
     other values as fourcc code: see [ObjectType](http://mp4ra.org/#/codecs),
     so you may receive a warning message from OpenCV about fourcc code conversion.
     @param fps Framerate of the created video stream.

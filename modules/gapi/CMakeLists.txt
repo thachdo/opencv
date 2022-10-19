@@ -13,14 +13,8 @@ if(NOT TARGET ade)
   return()
 endif()
 
-if(TARGET ocv.3rdparty.openvino)
-  # TODO: remove OPENCV_GAPI_INF_ENGINE option
-  set(initial_value ON)
-  if(DEFINED OPENCV_GAPI_INF_ENGINE)
-    set(initial_value ${OPENCV_GAPI_INF_ENGINE})
-    message(WARNING "OPENCV_GAPI_INF_ENGINE option is deprecated. Use OPENCV_GAPI_WITH_OPENVINO option instead.")
-  endif()
-  ocv_option(OPENCV_GAPI_WITH_OPENVINO "G-API: Enable OpenVINO Toolkit support" ${initial_value})
+if(INF_ENGINE_TARGET)
+  ocv_option(OPENCV_GAPI_INF_ENGINE "Build GraphAPI module with Inference Engine support" ON)
 endif()
 
 set(the_description "OpenCV G-API Core Module")
@@ -51,7 +45,6 @@ file(GLOB gapi_ext_hdrs
     "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/fluid/*.hpp"
     "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/gpu/*.hpp"
     "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/infer/*.hpp"
-    "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/oak/*.hpp"
     "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/ocl/*.hpp"
     "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/own/*.hpp"
     "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/plaidml/*.hpp"
@@ -61,7 +54,6 @@ file(GLOB gapi_ext_hdrs
     "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/streaming/*.hpp"
     "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/streaming/gstreamer/*.hpp"
     "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/streaming/onevpl/*.hpp"
-    "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/plaidml/*.hpp"
     "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/util/*.hpp"
     )
 
@@ -113,8 +105,6 @@ set(gapi_srcs
     src/compiler/passes/intrin.cpp
 
     # Executor
-    src/executor/gabstractexecutor.cpp
-    src/executor/gabstractstreamingexecutor.cpp
     src/executor/gexecutor.cpp
     src/executor/gtbbexecutor.cpp
     src/executor/gstreamingexecutor.cpp
@@ -135,12 +125,7 @@ set(gapi_srcs
     src/backends/fluid/gfluidimgproc.cpp
     src/backends/fluid/gfluidimgproc_func.dispatch.cpp
     src/backends/fluid/gfluidcore.cpp
-    src/backends/fluid/gfluidcore_func.dispatch.cpp
-
-    # OAK Backend (optional)
-    src/backends/oak/goak.cpp
-    src/backends/oak/goakbackend.cpp
-    src/backends/oak/goak_memory_adapters.cpp
+	  src/backends/fluid/gfluidcore_func.dispatch.cpp
 
     # OCL Backend (currently built-in)
     src/backends/ocl/goclbackend.cpp
@@ -178,7 +163,6 @@ set(gapi_srcs
 
     # Python bridge
     src/backends/ie/bindings_ie.cpp
-    src/backends/onnx/bindings_onnx.cpp
     src/backends/python/gpythonbackend.cpp
 
     # OpenVPL Streaming source
@@ -189,7 +173,6 @@ set(gapi_srcs
     src/streaming/onevpl/cfg_params_parser.cpp
     src/streaming/onevpl/utils.cpp
     src/streaming/onevpl/data_provider_interface_exception.cpp
-    src/streaming/onevpl/accelerators/surface/base_frame_adapter.cpp
     src/streaming/onevpl/accelerators/surface/cpu_frame_adapter.cpp
     src/streaming/onevpl/accelerators/surface/dx11_frame_adapter.cpp
     src/streaming/onevpl/accelerators/surface/surface.cpp
@@ -197,18 +180,11 @@ set(gapi_srcs
     src/streaming/onevpl/accelerators/utils/shared_lock.cpp
     src/streaming/onevpl/accelerators/accel_policy_cpu.cpp
     src/streaming/onevpl/accelerators/accel_policy_dx11.cpp
-    src/streaming/onevpl/accelerators/accel_policy_va_api.cpp
     src/streaming/onevpl/accelerators/dx11_alloc_resource.cpp
     src/streaming/onevpl/engine/engine_session.cpp
     src/streaming/onevpl/engine/processing_engine_base.cpp
     src/streaming/onevpl/engine/decode/decode_engine_legacy.cpp
     src/streaming/onevpl/engine/decode/decode_session.cpp
-    src/streaming/onevpl/engine/transcode/transcode_engine_legacy.cpp
-    src/streaming/onevpl/engine/transcode/transcode_session.cpp
-    src/streaming/onevpl/engine/preproc/preproc_engine.cpp
-    src/streaming/onevpl/engine/preproc/preproc_session.cpp
-    src/streaming/onevpl/engine/preproc/preproc_dispatcher.cpp
-    src/streaming/onevpl/engine/preproc_engine_interface.cpp
     src/streaming/onevpl/demux/async_mfp_demux_data_provider.cpp
     src/streaming/onevpl/data_provider_dispatcher.cpp
 
@@ -243,8 +219,12 @@ ocv_create_module()
 
 ocv_target_link_libraries(${the_module} PRIVATE ade)
 
-if(TARGET ocv.3rdparty.openvino AND OPENCV_GAPI_WITH_OPENVINO)
-  ocv_target_link_libraries(${the_module} PRIVATE ocv.3rdparty.openvino)
+if(OPENCV_GAPI_INF_ENGINE)
+  ocv_target_link_libraries(${the_module} PRIVATE ${INF_ENGINE_TARGET})
+endif()
+
+if (HAVE_NGRAPH)
+    ocv_target_link_libraries(${the_module} PRIVATE ngraph::ngraph)
 endif()
 
 if(HAVE_TBB)
@@ -259,8 +239,11 @@ if(CV_TRACE AND HAVE_ITT)
 endif()
 
 set(__test_extra_deps "")
-if(TARGET ocv.3rdparty.openvino AND OPENCV_GAPI_WITH_OPENVINO)
-  list(APPEND __test_extra_deps ocv.3rdparty.openvino)
+if(OPENCV_GAPI_INF_ENGINE)
+  list(APPEND __test_extra_deps ${INF_ENGINE_TARGET})
+endif()
+if(HAVE_NGRAPH)
+  list(APPEND __test_extra_deps ngraph::ngraph)
 endif()
 ocv_add_accuracy_tests(${__test_extra_deps})
 
@@ -271,6 +254,9 @@ ocv_add_accuracy_tests(${__test_extra_deps})
 if(TARGET opencv_test_gapi)
   target_include_directories(opencv_test_gapi PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
   target_link_libraries(opencv_test_gapi PRIVATE ade)
+  if (HAVE_NGRAPH)
+      ocv_target_compile_definitions(opencv_test_gapi PRIVATE -DHAVE_NGRAPH)
+  endif()
 endif()
 
 if(HAVE_TBB AND TARGET opencv_test_gapi)
@@ -284,14 +270,6 @@ if(HAVE_FREETYPE)
   endif()
   ocv_target_link_libraries(${the_module} PRIVATE ${FREETYPE_LIBRARIES})
   ocv_target_include_directories(${the_module} PRIVATE ${FREETYPE_INCLUDE_DIRS})
-endif()
-
-if(HAVE_OAK)
-  ocv_target_compile_definitions(${the_module} PRIVATE -DHAVE_OAK)
-  if(TARGET opencv_test_gapi)
-    ocv_target_compile_definitions(opencv_test_gapi PRIVATE -DHAVE_OAK)
-  endif()
-  ocv_target_link_libraries(${the_module} PRIVATE depthai::core)
 endif()
 
 if(HAVE_PLAIDML)
@@ -314,32 +292,11 @@ if(HAVE_GAPI_ONEVPL)
         ocv_target_include_directories(opencv_test_gapi SYSTEM PRIVATE ${OPENCL_INCLUDE_DIRS})
     endif()
   endif()
-
   ocv_target_compile_definitions(${the_module} PRIVATE -DHAVE_ONEVPL)
   ocv_target_link_libraries(${the_module} PRIVATE ${VPL_IMPORTED_TARGETS})
 
-  if(HAVE_DIRECTX AND HAVE_D3D11)
-    ocv_target_link_libraries(${the_module} PRIVATE d3d11 dxgi)
-  endif()
-  if(WIN32)
-    ocv_target_link_libraries(${the_module} PRIVATE mf mfuuid mfplat shlwapi mfreadwrite)
-  endif()
   if(HAVE_D3D11 AND HAVE_OPENCL)
     ocv_target_include_directories(${the_module} SYSTEM PRIVATE ${OPENCL_INCLUDE_DIRS})
-  endif()
-
-  if(UNIX)
-    if(WITH_VA)
-      include("${OpenCV_SOURCE_DIR}/cmake/OpenCVFindVA.cmake")
-      if(VA_INCLUDE_DIR)
-        ocv_target_include_directories(${the_module} SYSTEM PRIVATE ${VA_INCLUDE_DIR})
-        ocv_target_include_directories(opencv_test_gapi SYSTEM PRIVATE ${VA_INCLUDE_DIR})
-        ocv_target_link_libraries(${the_module} PRIVATE ${VA_LIBRARIES})
-        ocv_target_link_libraries(opencv_test_gapi PRIVATE ${VA_LIBRARIES})
-      endif()
-    else(WITH_VA)
-      message(FATAL_ERROR "libva not found: building HAVE_GAPI_ONEVPL without libVA support is impossible on UNIX systems")
-    endif(WITH_VA)
   endif()
 endif()
 
@@ -372,35 +329,20 @@ ocv_add_samples()
 
 
 # Required for sample with inference on host
-if(TARGET example_gapi_onevpl_infer_single_roi)
-  if(TARGET ocv.3rdparty.openvino AND OPENCV_GAPI_WITH_OPENVINO)
-    ocv_target_link_libraries(example_gapi_onevpl_infer_single_roi PRIVATE ocv.3rdparty.openvino)
-  endif()
-  if(HAVE_DIRECTX AND HAVE_D3D11)
-    ocv_target_link_libraries(example_gapi_onevpl_infer_single_roi PRIVATE d3d11 dxgi)
+if (TARGET example_gapi_onevpl_infer_single_roi)
+  if(OPENCV_GAPI_INF_ENGINE)
+    ocv_target_link_libraries(example_gapi_onevpl_infer_single_roi PRIVATE ${INF_ENGINE_TARGET})
+    ocv_target_compile_definitions(example_gapi_onevpl_infer_single_roi PRIVATE -DHAVE_INF_ENGINE)
   endif()
   if(HAVE_D3D11 AND HAVE_OPENCL)
     ocv_target_include_directories(example_gapi_onevpl_infer_single_roi SYSTEM PRIVATE ${OPENCL_INCLUDE_DIRS})
-  endif()
-  if(WITH_VA AND UNIX)
-    message ("GAPI VPL samples with VAAPI")
-    ocv_target_include_directories(example_gapi_onevpl_infer_single_roi SYSTEM PRIVATE ${VA_INCLUDE_DIR})
-    ocv_target_link_libraries(example_gapi_onevpl_infer_single_roi PRIVATE ${VA_LIBRARIES})
-  endif()
-endif()
-
-if(TARGET example_gapi_pipeline_modeling_tool)
-  if(WIN32)
-    ocv_target_link_libraries(example_gapi_pipeline_modeling_tool winmm.lib)
   endif()
 endif()
 
 # perf test dependencies postprocessing
 if(HAVE_GAPI_ONEVPL)
   # NB: TARGET opencv_perf_gapi doesn't exist before `ocv_add_perf_tests`
-  # src/ is specified to include dirs for INTERNAL tests only.
   if(TARGET opencv_perf_gapi)
-    target_include_directories(opencv_perf_gapi PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
     ocv_target_compile_definitions(opencv_perf_gapi PRIVATE -DHAVE_ONEVPL)
     ocv_target_link_libraries(opencv_perf_gapi PRIVATE ${VPL_IMPORTED_TARGETS})
     if(HAVE_D3D11 AND HAVE_OPENCL)

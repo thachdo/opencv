@@ -410,13 +410,9 @@ namespace std
     };
 } // namespace std
 
+
 namespace cv {
-    class GAPI_EXPORTS_W_SIMPLE GKernelPackage;
-
 namespace gapi {
-    GAPI_EXPORTS cv::GKernelPackage combine(const cv::GKernelPackage  &lhs,
-                                            const cv::GKernelPackage  &rhs);
-
     /// @private
     class GFunctor
     {
@@ -431,7 +427,6 @@ namespace gapi {
     private:
         const char* m_id;
     };
-} // namespace gapi
 
     /** \addtogroup gapi_compile_args
      * @{
@@ -468,7 +463,7 @@ namespace gapi {
     {
 
         /// @private
-        using M = std::unordered_map<std::string, std::pair<cv::gapi::GBackend, cv::GKernelImpl>>;
+        using M = std::unordered_map<std::string, std::pair<GBackend, GKernelImpl>>;
 
         /// @private
         M m_id_kernels;
@@ -505,8 +500,10 @@ namespace gapi {
         }
 
     public:
-        void include(const cv::gapi::GFunctor& functor);
-
+        void include(const GFunctor& functor)
+        {
+            m_id_kernels[functor.id()] = std::make_pair(functor.backend(), functor.impl());
+        }
         /**
          * @brief Returns total number of kernels
          * in the package (across all backends included)
@@ -558,7 +555,7 @@ namespace gapi {
          *
          * @param backend backend which kernels to remove
          */
-        void remove(const cv::gapi::GBackend& backend);
+        void remove(const GBackend& backend);
 
         /**
          * @brief Remove all kernels implementing the given API from
@@ -598,7 +595,7 @@ namespace gapi {
          *
          */
         template<typename KAPI>
-        cv::gapi::GBackend lookup() const
+        GBackend lookup() const
         {
             return lookup(KAPI::id()).first;
         }
@@ -624,14 +621,18 @@ namespace gapi {
          * @param backend backend associated with the kernel
          * @param kernel_id a name/id of the kernel
          */
-        void include(const cv::gapi::GBackend& backend, const std::string& kernel_id);
+        void include(const cv::gapi::GBackend& backend, const std::string& kernel_id)
+        {
+            removeAPI(kernel_id);
+            m_id_kernels[kernel_id] = std::make_pair(backend, GKernelImpl{{}, {}});
+        }
 
         /**
          * @brief Lists all backends which are included into package
          *
          * @return vector of backends
          */
-        std::vector<cv::gapi::GBackend> backends() const;
+        std::vector<GBackend> backends() const;
 
         // TODO: Doxygen bug -- it wants me to place this comment
         // here, not below.
@@ -642,17 +643,9 @@ namespace gapi {
          * @param rhs "Right-hand-side" package in the process
          * @return a new kernel package.
          */
-        friend GAPI_EXPORTS GKernelPackage cv::gapi::combine(const GKernelPackage  &lhs,
-                                                             const GKernelPackage  &rhs);
+        friend GAPI_EXPORTS GKernelPackage combine(const GKernelPackage  &lhs,
+                                                   const GKernelPackage  &rhs);
     };
-    /** @} */
-
-namespace gapi {
-    using GKernelPackage = cv::GKernelPackage; // Keep backward compatibility
-
-    /** \addtogroup gapi_compile_args
-     * @{
-     */
 
     /**
      * @brief Create a kernel package object containing kernels
@@ -702,6 +695,10 @@ namespace gapi {
 
     /** @} */
 
+    // FYI - this function is already commented above
+    GAPI_EXPORTS GKernelPackage combine(const GKernelPackage  &lhs,
+                                        const GKernelPackage  &rhs);
+
     /**
      * @brief Combines multiple G-API kernel packages into one
      *
@@ -713,7 +710,7 @@ namespace gapi {
      * @return The resulting kernel package
      */
     template<typename... Ps>
-    cv::GKernelPackage combine(const cv::GKernelPackage &a, const cv::GKernelPackage &b, Ps&&... rest)
+    GKernelPackage combine(const GKernelPackage &a, const GKernelPackage &b, Ps&&... rest)
     {
         return combine(a, combine(b, rest...));
     }
@@ -736,7 +733,7 @@ namespace gapi {
 
 namespace detail
 {
-    template<> struct CompileArgTag<cv::GKernelPackage>
+    template<> struct CompileArgTag<cv::gapi::GKernelPackage>
     {
         static const char* tag() { return "gapi.kernel_package"; }
     };

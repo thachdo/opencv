@@ -92,7 +92,6 @@ static bool wasInitialized = false;
 @interface CVSlider : NSView {
     NSSlider *slider;
     NSTextField *name;
-    NSString *initialName;
     int *value;
     void *userData;
     CvTrackbarCallback callback;
@@ -100,7 +99,6 @@ static bool wasInitialized = false;
 }
 @property(retain) NSSlider *slider;
 @property(retain) NSTextField *name;
-@property(retain) NSString *initialName;
 @property(assign) int *value;
 @property(assign) void *userData;
 @property(assign) CvTrackbarCallback callback;
@@ -109,7 +107,6 @@ static bool wasInitialized = false;
 
 @interface CVWindow : NSWindow {
     NSMutableDictionary *sliders;
-    NSMutableArray *slidersKeys;
     CvMouseCallback mouseCallback;
     void *mouseParam;
     BOOL autosize;
@@ -124,7 +121,6 @@ static bool wasInitialized = false;
 @property(assign) int x0;
 @property(assign) int y0;
 @property(retain) NSMutableDictionary *sliders;
-@property(retain) NSMutableArray *slidersKeys;
 @property(readwrite) int status;
 - (CVView *)contentView;
 - (void)cvSendMouseEvent:(NSEvent *)event type:(int)type flags:(int)flags;
@@ -451,9 +447,6 @@ CV_IMPL void cvSetTrackbarPos(const char* trackbar_name, const char* window_name
         slider = [[window sliders] valueForKey:[NSString stringWithFormat:@"%s", trackbar_name]];
         if(slider) {
             [[slider slider] setIntValue:pos];
-            if([slider respondsToSelector:@selector(handleSlider)]) {
-                [slider performSelector:@selector(handleSlider)];
-            }
         }
     }
     [localpool5 drain];
@@ -849,7 +842,6 @@ static NSSize constrainAspectRatio(NSSize base, NSSize constraint) {
 @synthesize x0;
 @synthesize y0;
 @synthesize sliders;
-@synthesize slidersKeys;
 @synthesize status;
 
 - (void)cvSendMouseEvent:(NSEvent *)event type:(int)type flags:(int)flags {
@@ -941,9 +933,6 @@ static NSSize constrainAspectRatio(NSSize base, NSSize constraint) {
     if(sliders == nil)
         sliders = [[NSMutableDictionary alloc] init];
 
-    if(slidersKeys == nil)
-        slidersKeys = [[NSMutableArray alloc] init];
-
     NSString *cvname = [NSString stringWithFormat:@"%s", name];
 
     // Avoid overwriting slider
@@ -953,23 +942,18 @@ static NSSize constrainAspectRatio(NSSize base, NSSize constraint) {
     // Create slider
     CVSlider *slider = [[CVSlider alloc] init];
     [[slider name] setStringValue:cvname];
-    slider.initialName = [NSString stringWithFormat:@"%s", name];
     [[slider slider] setMaxValue:max];
     [[slider slider] setMinValue:0];
     if(value)
     {
         [[slider slider] setIntValue:*value];
         [slider setValue:value];
-        NSString *temp = [slider initialName];
-        NSString *text = [NSString stringWithFormat:@"%@ %d", temp, *value];
-        [[slider name] setStringValue: text];
     }
     if(callback)
         [slider setCallback:callback];
 
     // Save slider
     [sliders setValue:slider forKey:cvname];
-    [slidersKeys addObject:cvname];
     [[self contentView] addSubview:slider];
 
 
@@ -1108,7 +1092,7 @@ static NSSize constrainAspectRatio(NSSize base, NSSize constraint) {
 
     CVWindow *cvwindow = (CVWindow *)[self window];
     if ([cvwindow respondsToSelector:@selector(sliders)]) {
-        for(NSString *key in [cvwindow slidersKeys]) {
+        for(NSString *key in [cvwindow sliders]) {
             CVSlider *slider = [[cvwindow sliders] valueForKey:key];
             NSRect r = [slider frame];
             r.origin.y = height - r.size.height;
@@ -1160,7 +1144,6 @@ static NSSize constrainAspectRatio(NSSize base, NSSize constraint) {
 
 @synthesize slider;
 @synthesize name;
-@synthesize initialName;
 @synthesize value;
 @synthesize userData;
 @synthesize callback;
@@ -1190,7 +1173,7 @@ static NSSize constrainAspectRatio(NSSize base, NSSize constraint) {
     [slider setMaxValue:100];
     [slider setContinuous:YES];
     [slider setTarget:self];
-    [slider setAction:@selector(handleSliderNotification:)];
+    [slider setAction:@selector(sliderChanged:)];
     [self addSubview:slider];
 
     [self setAutoresizingMask:NSViewWidthSizable];
@@ -1200,16 +1183,9 @@ static NSSize constrainAspectRatio(NSSize base, NSSize constraint) {
     return self;
 }
 
-- (void)handleSliderNotification:(NSNotification *)notification {
+- (void)sliderChanged:(NSNotification *)notification {
     (void)notification;
-    [self handleSlider];
-}
-
-- (void)handleSlider {
     int pos = [slider intValue];
-    NSString *temp = [self initialName];
-    NSString *text = [NSString stringWithFormat:@"%@ %d", temp, pos];
-    [name setStringValue: text];
     if(value)
         *value = pos;
     if(callback)

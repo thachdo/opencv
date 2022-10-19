@@ -117,7 +117,7 @@ public:
     virtual ~CvCapture_OpenNI2();
 
     virtual double getProperty(int propIdx) const CV_OVERRIDE;
-    virtual bool setProperty(int probIdx, double propVal) CV_OVERRIDE;
+    virtual bool setProperty(int probIdx, int propVal) CV_OVERRIDE;
     virtual bool grabFrame() CV_OVERRIDE;
     virtual IplImage* retrieveFrame(int outputType) CV_OVERRIDE;
     virtual int getCaptureDomain() CV_OVERRIDE { return cv::CAP_OPENNI2; }
@@ -458,7 +458,7 @@ double CvCapture_OpenNI2::getProperty( int propIdx ) const
     return propValue;
 }
 
-bool CvCapture_OpenNI2::setProperty( int propIdx, double propValue )
+bool CvCapture_OpenNI2::setProperty( int propIdx, int propValue )
 {
     bool isSet = false;
     if( isOpened() )

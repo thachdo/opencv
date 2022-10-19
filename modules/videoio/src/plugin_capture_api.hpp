@@ -81,7 +81,7 @@ struct OpenCV_VideoIO_Capture_Plugin_API_v1_0_api_entries
 
     @note API-CALL 5, API-Version == 0
      */
-    CvResult (CV_API_CALL *Capture_setProperty)(CvPluginCapture handle, int prop, double val);
+    CvResult (CV_API_CALL *Capture_setProperty)(CvPluginCapture handle, int prop, int val);
 
     /** @brief Grab frame
 
@@ -101,6 +101,12 @@ struct OpenCV_VideoIO_Capture_Plugin_API_v1_0_api_entries
     @note API-CALL 7, API-Version == 0
      */
     CvResult (CV_API_CALL *Capture_retreive)(CvPluginCapture handle, int stream_idx, cv_videoio_capture_retrieve_cb_t callback, void* userdata);
+
+
+
+    CvResult(CV_API_CALL *Capture_getFormats)(CvPluginCapture handle, CV_OUT int* foramts);
+
+
 }; // OpenCV_VideoIO_Capture_Plugin_API_v1_0_api_entries
 
 struct OpenCV_VideoIO_Capture_Plugin_API_v1_1_api_entries

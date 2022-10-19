@@ -60,7 +60,7 @@ struct VideoCapture_uEye CV_FINAL: public IVideoCapture
     }
 
     double getProperty(int property_id) const CV_OVERRIDE;
-    bool setProperty(int property_id, double value) CV_OVERRIDE;
+    bool setProperty(int property_id, int value) CV_OVERRIDE;
     bool grabFrame() CV_OVERRIDE;
     bool retrieveFrame(int outputType, OutputArray frame) CV_OVERRIDE;
 
@@ -182,7 +182,7 @@ double VideoCapture_uEye::getProperty(int property_id) const
     return value;
 }
 
-bool VideoCapture_uEye::setProperty(int property_id, double value)
+bool VideoCapture_uEye::setProperty(int property_id, int value)
 {
     if(!isOpened())
         return false;

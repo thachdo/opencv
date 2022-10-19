@@ -99,10 +99,12 @@ public:
 
     virtual bool supportBackend(int backendId) CV_OVERRIDE
     {
-#ifdef HAVE_INF_ENGINE
-        if (backendId == DNN_BACKEND_INFERENCE_ENGINE_NGRAPH)
+        if (backendId == DNN_BACKEND_INFERENCE_ENGINE_NN_BUILDER_2019) {
             return bias == (int)bias;
-#endif
+        }
+        if (backendId == DNN_BACKEND_INFERENCE_ENGINE_NGRAPH) {
+            return bias == (int)bias;
+        }
         return backendId == DNN_BACKEND_OPENCV ||
                backendId == DNN_BACKEND_CUDA ||
                backendId == DNN_BACKEND_HALIDE ||
@@ -442,6 +444,24 @@ public:
 #endif  // HAVE_HALIDE
     }
 
+#ifdef HAVE_DNN_IE_NN_BUILDER_2019
+    virtual Ptr<BackendNode> initInfEngine(const std::vector<Ptr<BackendWrapper> >&) CV_OVERRIDE
+    {
+        float alphaSize = alpha;
+        if (!normBySize)
+            alphaSize *= (type == SPATIAL_NRM ? size*size : size);
+
+        InferenceEngine::Builder::NormLayer ieLayer(name);
+        ieLayer.setSize(size);
+        ieLayer.setAlpha(alphaSize);
+        ieLayer.setBeta(beta);
+        ieLayer.setAcrossMaps(type == CHANNEL_NRM);
+
+        InferenceEngine::Builder::Layer l = ieLayer;
+        l.getParameters()["k"] = bias;
+        return Ptr<BackendNode>(new InfEngineBackendNode(l));
+    }
+#endif  // HAVE_DNN_IE_NN_BUILDER_2019
 
 #ifdef HAVE_DNN_NGRAPH
     virtual Ptr<BackendNode> initNgraph(const std::vector<Ptr<BackendWrapper> >& inputs, const std::vector<Ptr<BackendNode> >& nodes) CV_OVERRIDE

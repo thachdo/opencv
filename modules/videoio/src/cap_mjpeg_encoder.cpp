@@ -515,7 +515,7 @@ public:
         return 0.;
     }
 
-    bool setProperty(int propId, double value) CV_OVERRIDE
+    bool setProperty(int propId, int value) CV_OVERRIDE
     {
         if( propId == VIDEOWRITER_PROP_QUALITY )
         {

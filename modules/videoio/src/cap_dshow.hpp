@@ -21,11 +21,25 @@ namespace cv
 class VideoCapture_DShow : public IVideoCapture
 {
 public:
+    VideoCapture_DShow(); // Added by e-con
     VideoCapture_DShow(int index);
     virtual ~VideoCapture_DShow();
 
+    /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+    virtual bool getDevices(int &devices);
+    virtual bool getDeviceInfo(int index, String &deviceName, String &vid, String &pid, String &devicePath);
+    virtual bool getFormats(int &formats);
+    virtual bool getFormatType(int formats, String &formatType, int &width, int &height, int &fps);
+    virtual bool setFormatType(int index);
+    virtual bool getVideoProperty(int propIdx, int &min, int &max, int &steppingDelta, int &supportedMode, int &currentValue, int &currentMode, int &defaultValue);
+    virtual bool setVideoProperty(int propIdx, int value, int mode);
+
+    /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
+
+
     virtual double getProperty(int propIdx) const CV_OVERRIDE;
-    virtual bool setProperty(int propIdx, double propVal) CV_OVERRIDE;
+    virtual bool setProperty(int propIdx, int propVal) CV_OVERRIDE;
 
     virtual bool grabFrame() CV_OVERRIDE;
     virtual bool retrieveFrame(int outputType, OutputArray frame) CV_OVERRIDE;
@@ -38,7 +52,12 @@ protected:
     int m_index, m_width, m_height, m_fourcc;
     int m_widthSet, m_heightSet;
     bool m_convertRGBSet;
+
     static videoInput g_VI;
+
+    //Added by e-con
+    bool m_ConvertRGB;
+    int m_FourccSet;
 };
 
 }

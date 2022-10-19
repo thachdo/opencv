@@ -50,12 +50,24 @@ class MotionJpegCapture: public IVideoCapture
 public:
     virtual ~MotionJpegCapture() CV_OVERRIDE;
     virtual double getProperty(int) const CV_OVERRIDE;
-    virtual bool setProperty(int, double) CV_OVERRIDE;
+    virtual bool setProperty(int, int) CV_OVERRIDE;
     virtual bool grabFrame() CV_OVERRIDE;
     virtual bool retrieveFrame(int, OutputArray) CV_OVERRIDE;
     virtual bool isOpened() const CV_OVERRIDE;
     virtual int getCaptureDomain() CV_OVERRIDE { return CAP_OPENCV_MJPEG; }
     MotionJpegCapture(const String&);
+
+    /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+    virtual bool getDevices(int &devices) CV_OVERRIDE ;
+    virtual bool getDeviceInfo(int index, String &deviceName, String &vid, String &pid, String &devicePath) CV_OVERRIDE;
+    virtual bool getFormats(int &formats) CV_OVERRIDE ;
+    virtual bool getFormatType(int formats, String &formatType, int &width, int &height, int &fps) CV_OVERRIDE;
+    virtual bool setFormatType(int) CV_OVERRIDE;
+    virtual bool getVideoProperty(int Property, int &min, int &max, int &steppingDelta, int &supportedMode, int &currentValue, int &currentMode, int &defaultValue) CV_OVERRIDE;
+    virtual bool setVideoProperty(int settings, int value, int mode) CV_OVERRIDE;
+
+    /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
 
     bool open(const String&);
     void close();
@@ -89,7 +101,7 @@ uint64_t MotionJpegCapture::getFramePos() const
     return m_frame_iterator - m_mjpeg_frames.begin() + 1;
 }
 
-bool MotionJpegCapture::setProperty(int property, double value)
+bool MotionJpegCapture::setProperty(int property, int value)
 {
     if(property == CAP_PROP_POS_FRAMES)
     {
@@ -157,6 +169,79 @@ bool MotionJpegCapture::grabFrame()
 
     return m_frame_iterator != m_mjpeg_frames.end();
 }
+
+
+/*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+bool MotionJpegCapture::getDevices(int &devices)
+{
+    std::cout << "MotionJpegCapture getDevices Currently this API for MotionJpegCapture is not supported" << std::endl;
+    devices = 0;
+    return false;
+}
+
+bool MotionJpegCapture::getDeviceInfo(int index, String &deviceName, String &vid, String &pid, String &devicePath)
+{
+    std::cout << "MotionJpegCapture getDeviceInfo Currently this API for MotionJpegCapture is not supported" << std::endl;
+    if (index == 0)
+    {
+        deviceName = "No devices";
+        vid = "No Vid";
+        pid = "No Pid";
+        devicePath = "Not Detected";
+    }
+    return false;
+}
+
+bool MotionJpegCapture::getFormats(int &formats)
+{
+    std::cout << "MotionJpegCapture getFormats Currently this API for MotionJpegCapture is not supported" << std::endl;
+    formats = 0;
+    return false;
+}
+
+bool MotionJpegCapture::getFormatType(int formats, String &formatType, int &width, int &height, int &fps)
+{
+    std::cout << "MotionJpegCapture getFormatType Currently this API for MotionJpegCapture is not supported" << std::endl;
+    if (formats == 0)
+    {
+        formatType = "Not Detected";
+        width = 0;
+        height = 0;
+        fps = 0;
+    }
+    return false;
+}
+
+
+bool MotionJpegCapture::setFormatType(int index)
+{
+    std::cout << "MotionJpegCapture setFormatType Currently this API for MotionJpegCapture is not supported" << std::endl;
+
+    return false;
+}
+
+
+bool MotionJpegCapture::getVideoProperty(int Property, int &min, int &max, int &steppingDelta, int &supportedMode, int &currentValue, int &currentMode, int &defaultValue)
+{
+    std::cout << "MotionJpegCapture getVideoProperty Currently this API for MotionJpegCapture is not supported" << std::endl;
+    if (Property == 0)
+    {
+        min = 0, max = 0, steppingDelta = 0, supportedMode = 0, currentValue = 0, currentMode = 0, defaultValue = 0;
+    }
+    return false;
+}
+
+bool MotionJpegCapture::setVideoProperty(int settings, int value, int mode)
+{
+    std::cout << "MotionJpegCapture setVideoProperty Currently this API for MotionJpegCapture is not supported" << std::endl;
+    if (settings == 0 && value == 0 && mode == 0)
+    {
+    }
+    return false;
+}
+
+/*!!!!!!!---------------------------END-----------------------!!!!!!!! */
 
 bool MotionJpegCapture::retrieveFrame(int, OutputArray output_frame)
 {

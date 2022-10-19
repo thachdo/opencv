@@ -106,9 +106,6 @@
 /* PNG codec */
 #cmakedefine HAVE_PNG
 
-/* PNG codec */
-#cmakedefine HAVE_SPNG
-
 /* Posix threads (pthreads) */
 #cmakedefine HAVE_PTHREAD
 

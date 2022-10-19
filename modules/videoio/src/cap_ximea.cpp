@@ -21,7 +21,7 @@ public:
     bool open( const char* deviceName );
     virtual void close();
     virtual double getProperty(int) const CV_OVERRIDE;
-    virtual bool setProperty(int, double) CV_OVERRIDE;
+    virtual bool setProperty(int, int) CV_OVERRIDE;
     virtual bool grabFrame() CV_OVERRIDE;
     virtual IplImage* retrieveFrame(int) CV_OVERRIDE;
     virtual int getCaptureDomain() CV_OVERRIDE { return CV_CAP_XIAPI; }
@@ -339,7 +339,7 @@ int CvCaptureCAM_XIMEA::ocvParamtoXimeaParam(int property_id) const
 
 /**********************************************************************************/
 
-bool CvCaptureCAM_XIMEA::setProperty( int property_id, double value )
+bool CvCaptureCAM_XIMEA::setProperty( int property_id, int value )
 {
     bool setProp_result = true;
     bool doAcqReset = false;
@@ -1784,7 +1784,7 @@ void CvCaptureCAM_XIMEA::errMsg(const char* msg, int errNum) const
 
     #if defined _WIN32
     char buf[512]="";
-    snprintf( buf, sizeof(buf), "%s : %d, %s\n", msg, errNum, error_message.c_str());
+    sprintf( buf, "%s : %d, %s\n", msg, errNum, error_message.c_str());
     OutputDebugString(buf);
     #else
     fprintf(stderr, "%s : %d, %s\n", msg, errNum, error_message.c_str());

@@ -79,7 +79,7 @@ public:
     {
         return ffmpegCapture ? icvGetCaptureProperty_FFMPEG_p(ffmpegCapture, propId) : 0;
     }
-    virtual bool setProperty(int propId, double value) CV_OVERRIDE
+    virtual bool setProperty(int propId, int value) CV_OVERRIDE
     {
         return ffmpegCapture ? icvSetCaptureProperty_FFMPEG_p(ffmpegCapture, propId, value)!=0 : false;
     }
@@ -221,7 +221,7 @@ public:
         return ffmpegWriter->getProperty(propId);
     }
 
-    virtual bool setProperty(int, double) CV_OVERRIDE { return false; }
+    virtual bool setProperty(int, int) CV_OVERRIDE { return false; }
     virtual bool isOpened() const CV_OVERRIDE { return ffmpegWriter != 0; }
 
 protected:

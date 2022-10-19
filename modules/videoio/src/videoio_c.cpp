@@ -68,7 +68,80 @@ CV_IMPL IplImage* cvQueryFrame(CvCapture* capture)
 CV_IMPL int cvGrabFrame(CvCapture* capture)
 {
     return capture ? capture->grabFrame() : 0;
-}
+  }
+
+  /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+
+  CV_IMPL bool cvGetFormats(CvCapture* capture, int &formats)
+  {
+      return capture ? capture->getFormats(formats) : 0;
+  }
+
+  CV_IMPL bool cvGetFormatType(CvCapture* capture, int formats, String &formatType, int &width, int &height, int &fps)
+  {
+      return capture ? capture->getFormatType(formats, formatType, width, height, fps) : 0;
+  }
+
+  CV_IMPL bool cvSetFormatType(CvCapture* capture, int index)
+  {
+      return capture ? capture->setFormatType(index) : 0;
+  }
+
+  CV_IMPL bool cvSetVideoProperty(CvCapture* capture, int id, int value, int mode)
+  {
+      return capture ? capture->setProperty(id, value, mode) : 0;
+  }
+
+
+  CV_IMPL CvCapture * cvGetDevices(CvCapture* capture,int &devices)
+  {
+      int pref = 0;
+      // CvCapture *capture = 0;
+
+      switch (pref)
+      {
+      default:
+          if (pref)
+              break;
+
+      case CAP_VFW: // or CAP_V4L or CAP_V4L2
+
+  #if defined HAVE_LIBV4L || defined HAVE_CAMV4L || defined HAVE_CAMV4L2 || defined HAVE_VIDEOIO
+          if(capture)
+          {
+            capture->getDevices(devices);
+          }
+          return capture;
+  #endif
+              if (pref) break; // CAP_VFW or CAP_V4L or CAP_V4L2
+      }
+      return capture;
+  }
+
+  CV_IMPL CvCapture * cvGetDeviceInfo(CvCapture* capture,int index, String &deviceName, String &vid, String &pid, String &devicePath)
+  {
+
+      int pref = 0;
+      // CvCapture *capture = 0;
+      switch (pref)
+      {
+      default:
+          if (pref)    break;
+
+      case CAP_VFW: // or CAP_V4L or CAP_V4L2
+  #if defined HAVE_LIBV4L || defined HAVE_CAMV4L || defined HAVE_CAMV4L2 || defined HAVE_VIDEOIO
+          if(capture)
+            capture->getDeviceInfo(index, deviceName, vid, pid, devicePath);
+          return capture;
+  #endif
+              if (pref)    break; //CAP_VFW  or CAP_V4L or CAP_V4L2
+      }
+      return capture;
+      //return capture ? capture->getDeviceInfo(index, deviceName, vid, pid, devicePath) : 0;
+  }
+
+  /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
 
 CV_IMPL IplImage* cvRetrieveFrame(CvCapture* capture, int idx)
 {

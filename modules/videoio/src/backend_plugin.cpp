@@ -503,6 +503,7 @@ public:
             CV_LOG_ERROR(NULL, "Video I/O: Can't release capture by plugin '" << plugin_api_->api_header.api_description << "'");
         capture_ = NULL;
     }
+
     double getProperty(int prop) const CV_OVERRIDE
     {
         double val = -1;
@@ -511,7 +512,7 @@ public:
                 val = -1;
         return val;
     }
-    bool setProperty(int prop, double val) CV_OVERRIDE
+    bool setProperty(int prop, int val) CV_OVERRIDE
     {
         if (plugin_api_->v0.Capture_setProperty)
             if (CV_ERROR_OK == plugin_api_->v0.Capture_setProperty(capture_, prop, val))
@@ -525,6 +526,7 @@ public:
                 return true;
         return false;
     }
+
     static CvResult CV_API_CALL retrieve_callback(int stream_idx, const unsigned char* data, int step, int width, int height, int type, void* userdata)
     {
         CV_UNUSED(stream_idx);
@@ -534,6 +536,8 @@ public:
         cv::Mat(cv::Size(width, height), type, (void*)data, step).copyTo(*dst);
         return CV_ERROR_OK;
     }
+
+
     bool retrieveFrame(int idx, cv::OutputArray img) CV_OVERRIDE
     {
         bool res = false;
@@ -542,14 +546,63 @@ public:
                 res = true;
         return res;
     }
+
+
     bool isOpened() const CV_OVERRIDE
     {
         return capture_ != NULL;  // TODO always true
     }
+
+
     int getCaptureDomain() CV_OVERRIDE
     {
         return plugin_api_->v0.id;
     }
+
+    /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+    //Dummy Functions for the CV_OVERRIDE
+    bool getDevices(int &devices) CV_OVERRIDE
+    {
+        return true;
+    }
+
+    bool getDeviceInfo(int index, String &deviceName, String &vid, String &pid, String &devicePath) CV_OVERRIDE
+    {
+        return true;
+    }
+
+    bool getFormats(int &formats) CV_OVERRIDE
+    {
+        return true;
+
+        bool res = false;
+        if (plugin_api_->v0.Capture_getFormats)
+            if (CV_ERROR_OK != plugin_api_->v0.Capture_getFormats(capture_, &formats))
+                res = true;
+        return res;
+    }
+
+    bool getFormatType(int formats, String &formatType, int &width, int &height, int &fps) CV_OVERRIDE
+    {
+        return true;
+    }
+
+    bool setFormatType(int index) CV_OVERRIDE
+    {
+        return true;
+    }
+
+    bool getVideoProperty(int Property, int &min, int &max, int &steppingDelta, int &supportedMode, int &currentValue, int &currentMode, int &defaultValue) CV_OVERRIDE
+    {
+        return true;
+    }
+
+    bool setVideoProperty(int settings, int value, int mode) CV_OVERRIDE
+    {
+        return true;
+    }
+
+    /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
 };
 
 
@@ -629,7 +682,7 @@ public:
                 val = -1;
         return val;
     }
-    bool setProperty(int prop, double val) CV_OVERRIDE
+    bool setProperty(int prop, int val) CV_OVERRIDE
     {
         if (plugin_api_->v0.Writer_setProperty)
             if (CV_ERROR_OK == plugin_api_->v0.Writer_setProperty(writer_, prop, val))
@@ -663,7 +716,9 @@ Ptr<IVideoCapture> PluginBackend::createCapture(int camera, const VideoCapturePa
     try
     {
         if (capture_api_)
+        {
             return PluginCapture::create(capture_api_, std::string(), camera, params); //.staticCast<IVideoCapture>();
+        }
         if (plugin_api_)
         {
             Ptr<IVideoCapture> cap = legacy::PluginCapture::create(plugin_api_, std::string(), camera); //.staticCast<IVideoCapture>();

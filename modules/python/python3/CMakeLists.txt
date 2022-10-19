@@ -16,8 +16,8 @@ set(MODULE_NAME python3)
 set(MODULE_INSTALL_SUBDIR python3)
 
 set(PYTHON PYTHON3)
-
-include(../common.cmake)
+get_filename_component(PARENT_DIR ../ ABSOLUTE)
+include(${PARENT_DIR}/common.cmake)
 
 unset(MODULE_NAME)
 unset(MODULE_INSTALL_SUBDIR)

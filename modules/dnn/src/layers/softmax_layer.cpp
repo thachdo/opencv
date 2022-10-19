@@ -99,10 +99,6 @@ public:
 
     virtual bool supportBackend(int backendId) CV_OVERRIDE
     {
-#ifdef HAVE_INF_ENGINE
-        if (backendId == DNN_BACKEND_INFERENCE_ENGINE_NGRAPH)
-            return true;
-#endif
 #ifdef HAVE_WEBNN
         if (backendId == DNN_BACKEND_WEBNN) {
             // TODO: support logSoftMax
@@ -116,6 +112,8 @@ public:
         return backendId == DNN_BACKEND_OPENCV ||
                backendId == DNN_BACKEND_CUDA ||
                (backendId == DNN_BACKEND_HALIDE && haveHalide() && axisRaw == 1) ||
+               backendId == DNN_BACKEND_INFERENCE_ENGINE_NGRAPH ||
+               (backendId == DNN_BACKEND_INFERENCE_ENGINE_NN_BUILDER_2019 && haveInfEngine() && !logSoftMax) ||
                (backendId == DNN_BACKEND_VKCOM && haveVulkan());
     }
 
@@ -362,6 +360,17 @@ public:
         return Ptr<BackendNode>();
     }
 
+#ifdef HAVE_DNN_IE_NN_BUILDER_2019
+    virtual Ptr<BackendNode> initInfEngine(const std::vector<Ptr<BackendWrapper> >& inputs) CV_OVERRIDE
+    {
+        InferenceEngine::DataPtr input = infEngineDataNode(inputs[0]);
+
+        InferenceEngine::Builder::SoftMaxLayer ieLayer(name);
+        ieLayer.setAxis(normalize_axis(axisRaw, input->getDims().size()));
+
+        return Ptr<BackendNode>(new InfEngineBackendNode(ieLayer));
+    }
+#endif  // HAVE_DNN_IE_NN_BUILDER_2019
 
 #ifdef HAVE_DNN_NGRAPH
     virtual Ptr<BackendNode> initNgraph(const std::vector<Ptr<BackendWrapper> >& inputs,
@@ -390,8 +399,6 @@ public:
         }
         params.blobs.clear();
         params.blobs.push_back(lookUpTable);
-        params.set("input_scale", inpScale);
-        params.set("input_zeropoint", zeropoints[0][0]);
         return true;
     }
 

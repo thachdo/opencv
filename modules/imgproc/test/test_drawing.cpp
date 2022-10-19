@@ -71,7 +71,7 @@ void CV_DrawingTest::run( int )
     {
         //imwrite( filename, testImg );
         ts->printf( ts->LOG, "test image can not be read");
-#if defined(HAVE_PNG) || defined(HAVE_SPNG)
+#ifdef HAVE_PNG
         ts->set_failed_test_info(cvtest::TS::FAIL_INVALID_TEST_DATA);
 #else
         ts->printf( ts->LOG, "PNG image support is not available");

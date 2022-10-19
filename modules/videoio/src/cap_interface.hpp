@@ -5,6 +5,7 @@
 #ifndef CAP_INTERFACE_HPP
 #define CAP_INTERFACE_HPP
 
+#include <string.h>
 #include "opencv2/core.hpp"
 #include "opencv2/core/core_c.h"
 #include "opencv2/videoio.hpp"
@@ -18,11 +19,26 @@ struct CvCapture
 {
     virtual ~CvCapture() {}
     virtual double getProperty(int) const { return 0; }
-    virtual bool setProperty(int, double) { return 0; }
+    virtual bool setProperty(int, int) { return 0; }
     virtual bool grabFrame() { return true; }
     virtual IplImage* retrieveFrame(int) { return 0; }
     virtual int getCaptureDomain() { return cv::CAP_ANY; } // Return the type of the capture object: CAP_DSHOW, etc...
+
+    /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+    virtual bool getDevices(int &devices) { return true; }
+    virtual bool getDeviceInfo(int index, std::string &deviceName, std::string &vid, std::string &pid, std::string &devicePath){ return true; }
+    virtual bool getFormats(int &) { return true; }
+    virtual bool getFormatType(int, cv::String &, int &, int &, int &) { return true; }
+    virtual bool setFormatType(int) { return true; }
+    virtual bool getProperty(int, int &, int &, int &, int &, int &, int &, int &) { return true; }
+    virtual bool setProperty(int, int, int) { return true; }
+    //virtual bool setProperty(int, int) { return 0; }
+
+
+    /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
+
 };
+
 
 struct CvVideoWriter
 {
@@ -212,9 +228,21 @@ public:
 class IVideoCapture
 {
 public:
-    virtual ~IVideoCapture() {}
+  virtual ~IVideoCapture() {}
+
+    /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+    virtual bool getDevices(int &) {return true;}
+    virtual bool getDeviceInfo(int, String &, String &, String &, String &){return true;}
+    virtual bool getFormats(int &)  {return true;}
+    virtual bool getFormatType(int, String &, int &, int &, int &)  {return true;}
+    virtual bool setFormatType(int)  {return true;}
+    virtual bool getVideoProperty(int, int &, int &, int &, int &, int &, int &, int &)  {return true;}
+    virtual bool setVideoProperty(int, int, int)  {return true;}
+
+    /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
+
     virtual double getProperty(int) const { return 0; }
-    virtual bool setProperty(int, double) { return false; }
+    virtual bool setProperty(int, int) { return false; }
     virtual bool grabFrame() = 0;
     virtual bool retrieveFrame(int, OutputArray) = 0;
     virtual bool isOpened() const = 0;
@@ -226,7 +254,7 @@ class IVideoWriter
 public:
     virtual ~IVideoWriter() {}
     virtual double getProperty(int) const { return 0; }
-    virtual bool setProperty(int, double) { return false; }
+    virtual bool setProperty(int, int) { return false; }
     virtual bool isOpened() const = 0;
     virtual void write(InputArray) = 0;
     virtual int getCaptureDomain() const { return cv::CAP_ANY; } // Return the type of the capture object: CAP_FFMPEG, etc...
@@ -261,13 +289,51 @@ public:
     {
         return cap ? cap->getProperty(propId) : 0;
     }
-    bool setProperty(int propId, double value) CV_OVERRIDE
+    bool setProperty(int propId, int value) CV_OVERRIDE
     {
         return cvSetCaptureProperty(cap, propId, value) != 0;
     }
     bool grabFrame() CV_OVERRIDE
     {
         return cap ? cvGrabFrame(cap) != 0 : false;
+    }
+    bool getVideoProperty(int propId, int &min, int &max, int &steppingDelta, int &supportedMode, int &currentValue, int &currentMode, int &defaultValue) CV_OVERRIDE
+    {
+      return cap ? cap->getProperty(propId,min,max,steppingDelta,supportedMode,currentValue,currentMode,defaultValue) : 0;
+    }
+    bool setVideoProperty(int propId, int value, int mode) CV_OVERRIDE
+    {
+      return cvSetVideoProperty(cap, propId, value, mode) != 0;
+    }
+    bool getDevices(int &devices) CV_OVERRIDE
+    {
+      if(cap)
+        cvGetDevices(cap,devices);
+      return true;
+    }
+    bool getDeviceInfo(int index, String &deviceName, String &vid, String &pid, String &devicePath) CV_OVERRIDE
+    {
+      if(cap)
+        cvGetDeviceInfo(cap,index,deviceName,vid,pid,devicePath);
+      return true;
+    }
+    bool getFormats(int &formats) CV_OVERRIDE
+    {
+      if(cap)
+        cvGetFormats(cap,formats);
+      return true;
+    }
+    bool getFormatType(int formats, cv::String &formatType, int &width, int &height, int &fps ) CV_OVERRIDE
+    {
+      if(cap)
+        cvGetFormatType(cap,formats,formatType,width,height,fps);
+      return true;
+    }
+    bool setFormatType(int index) CV_OVERRIDE
+    {
+      if(cap)
+        cvSetFormatType(cap,index);
+      return true;
     }
     bool retrieveFrame(int channel, OutputArray image) CV_OVERRIDE
     {
@@ -321,7 +387,7 @@ public:
         }
         return 0.;
     }
-    bool setProperty(int, double) CV_OVERRIDE
+    bool setProperty(int, int) CV_OVERRIDE
     {
         return false;
     }
@@ -410,11 +476,6 @@ Ptr<IVideoCapture> createXINECapture(const std::string &filename);
 
 Ptr<IVideoCapture> createAndroidCapture_cam( int index );
 Ptr<IVideoCapture> createAndroidCapture_file(const std::string &filename);
-Ptr<IVideoWriter> createAndroidVideoWriter(const std::string& filename, int fourcc,
-                                           double fps, const Size& frameSize,
-                                           const VideoWriterParameters& params);
-
-Ptr<IVideoCapture> create_obsensor_capture(int index);
 
 bool VideoCapture_V4L_waitAny(
         const std::vector<VideoCapture>& streams,

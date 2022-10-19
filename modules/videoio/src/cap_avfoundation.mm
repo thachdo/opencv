@@ -98,7 +98,7 @@ class CvCaptureCAM : public CvCapture {
         bool grabFrame() CV_OVERRIDE;
         IplImage* retrieveFrame(int) CV_OVERRIDE;
         double getProperty(int property_id) const CV_OVERRIDE;
-        bool setProperty(int property_id, double value) CV_OVERRIDE;
+        bool setProperty(int property_id, int value) CV_OVERRIDE;
         int getCaptureDomain() /*const*/ CV_OVERRIDE { return cv::CAP_AVFOUNDATION; }
 
         virtual IplImage* queryFrame();
@@ -141,7 +141,7 @@ public:
     bool grabFrame() CV_OVERRIDE;
     IplImage* retrieveFrame(int) CV_OVERRIDE;
     double getProperty(int property_id) const CV_OVERRIDE;
-    bool setProperty(int property_id, double value) CV_OVERRIDE;
+    bool setProperty(int property_id, int value) CV_OVERRIDE;
     int getCaptureDomain() /*const*/ CV_OVERRIDE { return cv::CAP_AVFOUNDATION; }
 
     virtual int didStart();
@@ -535,7 +535,7 @@ double CvCaptureCAM::getProperty(int property_id) const{
 
 }
 
-bool CvCaptureCAM::setProperty(int property_id, double value) {
+bool CvCaptureCAM::setProperty(int property_id, int value) {
     switch (property_id) {
         case CV_CAP_PROP_FRAME_WIDTH:
             width = value;
@@ -1136,7 +1136,7 @@ double CvCaptureFile::getProperty(int property_id) const{
     return 0;
 }
 
-bool CvCaptureFile::setProperty(int property_id, double value) {
+bool CvCaptureFile::setProperty(int property_id, int value) {
     if (mAsset == nil) return false;
 
     NSAutoreleasePool* localpool = [[NSAutoreleasePool alloc] init];

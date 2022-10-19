@@ -167,8 +167,7 @@ bool OpConv::forward(Tensor& in, Tensor& filter_weights, Tensor& bias, Tensor& o
             config_.local_size_z = 1;
             config_.block_height = 4;
             config_.block_width  = 8;
-            has_bias_ ? createShaderModule(conv48_spv, sizeof(conv48_spv))
-                : createShaderModule(conv48_nobias_spv, sizeof(conv48_nobias_spv));
+            createShaderModule(conv48_spv, sizeof(conv48_spv));
             // specialization constants
             VkSpecializationInfo spec_info;
             ShaderConstant shader_constant;

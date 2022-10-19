@@ -63,7 +63,6 @@ namespace cvtest
     // GpuMat create
 
     cv::cuda::GpuMat createMat(cv::Size size, int type, bool useRoi = false);
-    cv::cuda::GpuMat createMat(cv::Size size, int type, cv::Size& size0, cv::Point& ofs, bool useRoi = false);
     cv::cuda::GpuMat loadMat(const cv::Mat& m, bool useRoi = false);
 
     //////////////////////////////////////////////////////////////////////

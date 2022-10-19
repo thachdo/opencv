@@ -21,7 +21,7 @@ public:
     VideoWriter_IntelMFX(const cv::String &filename, int _fourcc, double fps, cv::Size frameSize, bool isColor);
     ~VideoWriter_IntelMFX() CV_OVERRIDE;
     double getProperty(int) const CV_OVERRIDE;
-    bool setProperty(int, double) CV_OVERRIDE;
+    bool setProperty(int, int) CV_OVERRIDE;
     bool isOpened() const CV_OVERRIDE;
     void write(cv::InputArray input) CV_OVERRIDE;
     int getCaptureDomain() const CV_OVERRIDE { return cv::CAP_INTEL_MFX; }

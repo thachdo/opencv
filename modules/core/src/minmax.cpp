@@ -1565,24 +1565,13 @@ void cv::minMaxLoc( InputArray _img, double* minVal, double* maxVal,
 {
     CV_INSTRUMENT_REGION();
 
-    int dims = _img.dims();
-    CV_CheckLE(dims, 2, "");
+    CV_Assert(_img.dims() <= 2);
 
     minMaxIdx(_img, minVal, maxVal, (int*)minLoc, (int*)maxLoc, mask);
     if( minLoc )
-    {
-        if (dims == 2)
-            std::swap(minLoc->x, minLoc->y);
-        else
-            minLoc->y = 0;
-    }
+        std::swap(minLoc->x, minLoc->y);
     if( maxLoc )
-    {
-        if (dims == 2)
-            std::swap(maxLoc->x, maxLoc->y);
-        else
-            maxLoc->y = 0;
-    }
+        std::swap(maxLoc->x, maxLoc->y);
 }
 
 enum class ReduceMode

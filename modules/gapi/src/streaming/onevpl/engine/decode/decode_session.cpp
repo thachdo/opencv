@@ -11,6 +11,7 @@
 
 #include "streaming/onevpl/engine/decode/decode_session.hpp"
 #include "streaming/onevpl/engine/decode/decode_engine_legacy.hpp"
+#include "streaming/onevpl/accelerators/accel_policy_interface.hpp"
 #include "streaming/onevpl/accelerators/surface/surface.hpp"
 #include "streaming/onevpl/utils.hpp"
 
@@ -22,11 +23,10 @@ namespace onevpl {
 LegacyDecodeSession::LegacyDecodeSession(mfxSession sess,
                                          DecoderParams&& decoder_param,
                                          std::shared_ptr<IDataProvider> provider) :
-    EngineSession(sess),
+    EngineSession(sess, std::move(decoder_param.stream)),
     mfx_decoder_param(std::move(decoder_param.param)),
     data_provider(std::move(provider)),
-    stream(std::move(decoder_param.stream)),
-    processing_surface_ptr(),
+    procesing_surface_ptr(),
     sync_queue(),
     decoded_frames_count()
 {
@@ -38,10 +38,25 @@ LegacyDecodeSession::~LegacyDecodeSession()
     MFXVideoDECODE_Close(session);
 }
 
-void LegacyDecodeSession::swap_decode_surface(VPLLegacyDecodeEngine& engine) {
+void LegacyDecodeSession::swap_surface(VPLLegacyDecodeEngine& engine) {
     VPLAccelerationPolicy* acceleration_policy = engine.get_accel();
     GAPI_Assert(acceleration_policy && "Empty acceleration_policy");
-    request_free_surface(session, decoder_pool_id, *acceleration_policy, processing_surface_ptr);
+    try {
+        auto cand = acceleration_policy->get_free_surface(decoder_pool_id).lock();
+
+        GAPI_LOG_DEBUG(nullptr, "[" << session << "] swap surface"
+                                ", old: " << (!procesing_surface_ptr.expired()
+                                              ? procesing_surface_ptr.lock()->get_handle()
+                                              : nullptr) <<
+                                ", new: "<< cand->get_handle());
+
+        procesing_surface_ptr = cand;
+    } catch (const std::runtime_error& ex) {
+        GAPI_LOG_WARNING(nullptr, "[" << session << "] error: " << ex.what());
+
+        // Delegate exception processing on caller
+        throw;
+    }
 }
 
 void LegacyDecodeSession::init_surface_pool(VPLAccelerationPolicy::pool_key_t key) {
@@ -60,13 +75,8 @@ Data::Meta LegacyDecodeSession::generate_frame_meta() {
     return meta;
 }
 
-const mfxFrameInfo& LegacyDecodeSession::get_video_param() const {
-    return mfx_decoder_param.mfx.FrameInfo;
-}
-
-IDataProvider::mfx_bitstream *LegacyDecodeSession::get_mfx_bitstream_ptr() {
-    return (data_provider || (stream && stream->DataLength)) ?
-            stream.get() : nullptr;
+const mfxVideoParam& LegacyDecodeSession::get_video_param() const {
+    return mfx_decoder_param;
 }
 } // namespace onevpl
 } // namespace wip

@@ -1,5 +1,3 @@
-copytree(self.cpath / 'cmake', self.sysrootdir / 'deployment_tools' / 'inference_engine' / 'cmake')
-
 sysroot_bin_dir = prepare_dir(self.sysrootdir / 'bin')
 copytree(self.build_dir / 'install', self.sysrootdir / 'ngraph')
 #rm_one(self.sysrootdir / 'ngraph' / 'lib' / 'ngraph.dll')

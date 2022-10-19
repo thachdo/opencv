@@ -29,7 +29,6 @@
 #ifdef HAVE_MSMF_DXVA
 #include <d3d11.h>
 #include <d3d11_4.h>
-#include <locale>
 #endif
 #include <new>
 #include <map>
@@ -348,12 +347,6 @@ struct MediaType
         }
         return false;
     }
-    bool VideoIsAvailable() const
-    {
-        return ((subType == MFVideoFormat_RGB32) ||
-            (subType == MFVideoFormat_RGB24) ||
-            (subType == MFVideoFormat_YUY2));
-    }
 };
 
 void printFormat(std::ostream& out, const GUID& fmt)
@@ -543,7 +536,7 @@ private:
     // Destructor is private. Caller should call Release.
     virtual ~SourceReaderCB()
     {
-        CV_LOG_INFO(NULL, "terminating async callback");
+        CV_LOG_WARNING(NULL, "terminating async callback");
     }
 
 public:
@@ -634,7 +627,7 @@ public:
         {
             if (i->second.majorType == MFMediaType_Video)
             {
-                if (best.second.isEmpty() || (i->second.VideoIsBetterThan(best.second, newType) && i->second.VideoIsAvailable()))
+                if (best.second.isEmpty() || i->second.VideoIsBetterThan(best.second, newType))
                 {
                     best = *i;
                 }
@@ -744,7 +737,7 @@ public:
     virtual bool open(const cv::String&, const cv::VideoCaptureParameters* params);
     virtual void close();
     virtual double getProperty(int) const CV_OVERRIDE;
-    virtual bool setProperty(int, double) CV_OVERRIDE;
+    virtual bool setProperty(int, int) CV_OVERRIDE;
     bool configureAudioFrame();
     bool grabAudioFrame();
     bool grabVideoFrame();
@@ -754,6 +747,19 @@ public:
     virtual bool retrieveFrame(int, cv::OutputArray) CV_OVERRIDE;
     virtual bool isOpened() const CV_OVERRIDE { return isOpen; }
     virtual int getCaptureDomain() CV_OVERRIDE { return CV_CAP_MSMF; }
+
+    /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+    virtual bool getDevices(int &devices) CV_OVERRIDE;
+    virtual bool getDeviceInfo(int index, String &deviceName, String &vid, String &pid, String &devicePath) CV_OVERRIDE;
+    virtual bool getFormats(int &formats) CV_OVERRIDE;
+    virtual bool getFormatType(int formats, String &formatType, int &width, int &height, int &fps) CV_OVERRIDE;
+    virtual bool setFormatType(int) CV_OVERRIDE;
+    virtual bool getVideoProperty(int Property, int &min, int &max, int &steppingDelta, int &supportedMode, int &currentValue, int &currentMode, int &defaultValue) CV_OVERRIDE;
+    virtual bool setVideoProperty(int settings, int value, int mode) CV_OVERRIDE;
+
+    /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
+
 protected:
     bool configureOutput();
     bool configureAudioOutput(MediaType newType);
@@ -1329,6 +1335,80 @@ bool CvCapture_MSMF::openFinalize_(const VideoCaptureParameters* params)
 
     return true;
 }
+
+/*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+bool CvCapture_MSMF::getDevices(int &devices)
+{
+    //std::cout << "CvCapture_MSMF getDevices Currently this API for CvCapture_MSMF is not supported" << std::endl;
+    devices = 0;
+    return false;
+}
+
+bool CvCapture_MSMF::getDeviceInfo(int index, String &deviceName, String &vid, String &pid, String &devicePath)
+{
+    //std::cout << "CvCapture_MSMF getDeviceInfo Currently this API for CvCapture_MSMF is not supported" << std::endl;
+    if (index == 0)
+    {
+        deviceName = "No devices";
+        vid = "No Vid";
+        pid = "No Pid";
+        devicePath = "Not Detected";
+    }
+    return false;
+}
+
+bool CvCapture_MSMF::getFormats(int &formats)
+{
+    //std::cout << "CvCapture_MSMF getFormats Currently this API for CvCapture_MSMF is not supported" << std::endl;
+    formats = 0;
+    return false;
+}
+
+bool CvCapture_MSMF::getFormatType(int formats, String &formatType, int &width, int &height, int &fps)
+{
+    //std::cout << "CvCapture_MSMF getFormatType Currently this API for CvCapture_MSMF is not supported" << std::endl;
+    if (formats == 0)
+    {
+        formatType = "Not Detected";
+        width = 0;
+        height = 0;
+        fps = 0;
+    }
+    return false;
+}
+
+
+bool CvCapture_MSMF::setFormatType(int index)
+{
+    //std::cout << "CvCapture_MSMF setFormatType Currently this API for CvCapture_MSMF is not supported" << std::endl;
+
+    return false;
+}
+
+
+bool CvCapture_MSMF::getVideoProperty(int Property, int &min, int &max, int &steppingDelta, int &supportedMode, int &currentValue, int &currentMode, int &defaultValue)
+{
+    //std::cout << "CvCapture_MSMF getVideoProperty Currently this API for CvCapture_MSMF is not supported" << std::endl;
+    if (Property == 0)
+    {
+        min = 0, max = 0, steppingDelta = 0, supportedMode = 0, currentValue = 0, currentMode = 0, defaultValue = 0;
+    }
+    return false;
+}
+
+bool CvCapture_MSMF::setVideoProperty(int settings, int value, int mode)
+{
+    //std::cout << "CvCapture_MSMF setVideoProperty Currently this API for CvCapture_MSMF is not supported" << std::endl;
+    if (settings == 0 && value == 0 && mode == 0)
+    {
+    }
+    return false;
+}
+
+/*!!!!!!!---------------------------END-----------------------!!!!!!!! */
+
+
 
 bool CvCapture_MSMF::configureStreams(const cv::VideoCaptureParameters& params)
 {
@@ -2230,7 +2310,7 @@ bool CvCapture_MSMF::writeComplexProperty(long prop, double val, long flags)
     return true;
 }
 
-bool CvCapture_MSMF::setProperty( int property_id, double value )
+bool CvCapture_MSMF::setProperty( int property_id, int value )
 {
     MediaType newFormat = captureVideoFormat;
     if (isOpen)
@@ -2394,7 +2474,7 @@ public:
     virtual void write(cv::InputArray);
 
     virtual double getProperty(int) const override;
-    virtual bool setProperty(int, double) { return false; }
+    virtual bool setProperty(int, int) { return false; }
     virtual bool isOpened() const { return initiated; }
 
     int getCaptureDomain() const CV_OVERRIDE { return cv::CAP_MSMF; }

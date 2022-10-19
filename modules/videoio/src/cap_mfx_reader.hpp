@@ -21,7 +21,7 @@ public:
     VideoCapture_IntelMFX(const cv::String &filename);
     ~VideoCapture_IntelMFX();
     double getProperty(int) const CV_OVERRIDE;
-    bool setProperty(int, double) CV_OVERRIDE;
+    bool setProperty(int, int) CV_OVERRIDE;
     bool grabFrame() CV_OVERRIDE;
     bool retrieveFrame(int, cv::OutputArray out) CV_OVERRIDE;
     bool isOpened() const CV_OVERRIDE;

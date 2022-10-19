@@ -151,7 +151,7 @@ double VideoCapture_IntelMFX::getProperty(int prop) const
     }
 }
 
-bool VideoCapture_IntelMFX::setProperty(int, double)
+bool VideoCapture_IntelMFX::setProperty(int, int)
 {
     MSG(cerr << "MFX: setProperty() is not implemented" << endl);
     return false;

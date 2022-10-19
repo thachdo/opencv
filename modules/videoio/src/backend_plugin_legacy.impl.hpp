@@ -55,7 +55,7 @@ public:
                 val = -1;
         return val;
     }
-    bool setProperty(int prop, double val) CV_OVERRIDE
+    bool setProperty(int prop, int val) CV_OVERRIDE
     {
         if (plugin_api_->v0.Capture_setProperty)
             if (CV_ERROR_OK == plugin_api_->v0.Capture_setProperty(capture_, prop, val))
@@ -94,6 +94,46 @@ public:
     {
         return plugin_api_->v0.captureAPI;
     }
+
+
+    /*!!!!!!!-------------------ADDED BY E-CON SYSTEMS----------!!!!!!!! */
+
+    bool getDevices(int &devices) CV_OVERRIDE
+    {
+        return false;
+    }
+
+    bool getDeviceInfo(int index, String &deviceName, String &vid, String &pid, String &devicePath) CV_OVERRIDE
+    {
+        return false;
+    }
+
+    bool getFormats(int &formats)
+    {
+        return false;
+    }
+
+    bool getFormatType(int formats, String &formatType, int &width, int &height, int &fps) CV_OVERRIDE
+    {
+        return false;
+    }
+
+    bool setFormatType(int index) CV_OVERRIDE
+    {
+        return false;
+    }
+
+    bool getVideoProperty(int Property, int &min, int &max, int &steppingDelta, int &supportedMode, int &currentValue, int &currentMode, int &defaultValue) CV_OVERRIDE
+    {
+        return false;
+    }
+
+    bool setVideoProperty(int settings, int value, int mode) CV_OVERRIDE
+    {
+        return false;
+    }
+
+    /*!!!!!!!---------------------------END-----------------------!!!!!!!! */
 };
 
 
@@ -167,7 +207,7 @@ public:
                 val = -1;
         return val;
     }
-    bool setProperty(int prop, double val) CV_OVERRIDE
+    bool setProperty(int prop, int val) CV_OVERRIDE
     {
         if (plugin_api_->v0.Writer_setProperty)
             if (CV_ERROR_OK == plugin_api_->v0.Writer_setProperty(writer_, prop, val))

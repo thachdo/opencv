@@ -64,32 +64,12 @@ namespace cv
 namespace dnn
 {
 
-Range normalizeRange(const Range& input_range, int n)
+void sliceRangesFromShape(const MatShape& inpShape, int& axis, std::vector<std::vector<cv::Range> >& sliceRanges)
 {
-    Range range = input_range;
-
-    range.start = std::min(std::max(range.start, -n), n - 1);
-    if (range.start < 0)
-    {
-        range.start += n;
-    }
-
-    range.end = std::min(std::max(range.end, -n), n);
-    if (range.end < 0)
-    {
-        range.end += n;
-    }
-
-    return range;
-}
-
-std::vector<std::vector<cv::Range> > finalizeSliceRange(const MatShape& inpShape, int& axis,
-                                                        const std::vector<std::vector<cv::Range> >& inputSliceRanges)
-{
-    std::vector<std::vector<cv::Range> > sliceRanges = inputSliceRanges;
     CV_Assert(inpShape.size() > 0);
     bool axisNeg = (axis < 0);
     axis = (axis + static_cast<int>(inpShape.size())) % inpShape.size();
+    int n = inpShape[axis];
 
     for (size_t i = 0; i < sliceRanges.size(); ++i){
         std::vector<Range>& ranges = sliceRanges[i];
@@ -97,20 +77,16 @@ std::vector<std::vector<cv::Range> > finalizeSliceRange(const MatShape& inpShape
         {
             ranges.insert(ranges.begin(), axis, Range::all());
         }
+        Range& range = ranges.back();
 
-        for (size_t j = 0; j < ranges.size(); ++j)
+        if (range.start >= 0)
         {
-            int n = inpShape[j];
-            if (n <= 0)
-            {
-                continue;
-            }
-
-            ranges[j] = normalizeRange(ranges[j], n);
+            continue;
         }
-    }
 
-    return sliceRanges;
+        CV_Assert(n != 0);
+        range.start = (n + range.start) % n;
+    }
 }
 
 class SliceLayerImpl : public SliceLayer
@@ -160,7 +136,7 @@ public:
                 {
                     int size = sizeOrEnd;
                     CV_Assert(size == -1 || size > 0);  // -1 value means range [start, axis_size).
-                    sliceRanges[0][i].end = size > 0 ? (start + size) : INT_MAX;  // We'll finalize a negative value later.
+                    sliceRanges[0][i].end = size > 0 ? (start + size) : -1;  // We'll finalize a negative value later.
                 }
                 else
                 {
@@ -190,7 +166,12 @@ public:
 
     virtual bool supportBackend(int backendId) CV_OVERRIDE
     {
-#ifdef HAVE_INF_ENGINE
+#ifdef HAVE_DNN_IE_NN_BUILDER_2019
+        if (backendId == DNN_BACKEND_INFERENCE_ENGINE_NN_BUILDER_2019)
+            return INF_ENGINE_VER_MAJOR_GE(INF_ENGINE_RELEASE_2019R1) &&
+                sliceRanges.size() == 1 && sliceRanges[0].size() == 4 && !hasSteps;
+#endif
+#ifdef HAVE_DNN_NGRAPH
         if (backendId == DNN_BACKEND_INFERENCE_ENGINE_NGRAPH)
             return sliceRanges.size() == 1 && !hasSteps;
 #endif
@@ -210,7 +191,8 @@ public:
         MatShape inpShape = inputs[0];
 
         int axis_rw = axis;
-        std::vector<std::vector<cv::Range> > sliceRanges_rw = finalizeSliceRange(inpShape, axis_rw, sliceRanges);
+        std::vector<std::vector<cv::Range> > sliceRanges_rw = sliceRanges;
+        sliceRangesFromShape(inpShape, axis_rw, sliceRanges_rw);
 
         if (!sliceRanges_rw.empty())
         {
@@ -221,7 +203,7 @@ public:
                 for (int j = 0; j < sliceRanges_rw[i].size(); ++j)
                 {
                     if (shapesInitialized || inpShape[j] > 0)
-                        outputs[i][j] = normalizeRange(sliceRanges_rw[i][j], inpShape[j]).size();
+                        outputs[i][j] = normalize_axis_range(sliceRanges_rw[i][j], inpShape[j]).size();
 
                     if (!sliceSteps.empty() && (i < sliceSteps.size()) && (j < sliceSteps[i].size()) && (sliceSteps[i][j] > 1))
                         outputs[i][j] = (outputs[i][j] + sliceSteps[i][j] - 1) / sliceSteps[i][j];
@@ -258,7 +240,8 @@ public:
         CV_Assert(inputs.size() == 1);
         const MatSize& inpShape = inputs[0].size;
 
-        finalSliceRanges = finalizeSliceRange(shape(inputs[0]), axis, sliceRanges);
+        sliceRangesFromShape(shape(inputs[0]), axis, sliceRanges);
+        finalSliceRanges = sliceRanges;
 
         if (sliceRanges.empty())
         {
@@ -288,7 +271,7 @@ public:
             // Clamp.
             for (int j = 0; j < finalSliceRanges[i].size(); ++j)
             {
-                finalSliceRanges[i][j] = normalizeRange(finalSliceRanges[i][j], inpShape[j]);
+                finalSliceRanges[i][j] = normalize_axis_range(finalSliceRanges[i][j], inpShape[j]);
             }
         }
 
@@ -588,6 +571,64 @@ public:
             }
         }
     }
+
+
+#ifdef HAVE_DNN_IE_NN_BUILDER_2019
+#if INF_ENGINE_VER_MAJOR_GE(INF_ENGINE_RELEASE_2019R1)
+    virtual Ptr<BackendNode> initInfEngine(const std::vector<Ptr<BackendWrapper> >& inputs) CV_OVERRIDE
+    {
+        CV_Assert_N(finalSliceRanges.size() == 1, inputs.size() <= 2);
+
+        std::vector<size_t> axes, offsets, dims;
+        int from, to, step;
+        int numDims = finalSliceRanges[0].size();
+        if (preferableTarget == DNN_TARGET_MYRIAD || preferableTarget == DNN_TARGET_HDDL)
+        {
+            from = axis;
+            to = numDims;
+            step = 1;
+        }
+        else
+        {
+            from = numDims - 1;
+            to = axis - 1;
+            step = -1;
+        }
+        for (int i = from; i != to; i += step)
+        {
+            axes.push_back(i);
+            offsets.push_back(finalSliceRanges[0][i].start);
+            dims.push_back(finalSliceRanges[0][i].size());
+        }
+
+        InferenceEngine::Builder::Layer ieLayer(name);
+        ieLayer.setName(name);
+        ieLayer.setType("Crop");
+        ieLayer.getParameters()["axis"] = axes;
+        ieLayer.getParameters()["dim"] = dims;
+        ieLayer.getParameters()["offset"] = offsets;
+        ieLayer.setInputPorts(std::vector<InferenceEngine::Port>(2));
+        ieLayer.setOutputPorts(std::vector<InferenceEngine::Port>(1));
+
+        if (inputs.size() != 2)
+        {
+            std::vector<size_t> outShape(numDims);
+            for (int i = 0; i < numDims; ++i)
+                outShape[i] = finalSliceRanges[0][i].size();
+
+            ieLayer.getInputPorts()[1].setParameter("type", "weights");
+
+            auto shapeSource = InferenceEngine::make_shared_blob<float>({
+                                   InferenceEngine::Precision::FP32, outShape,
+                                   InferenceEngine::Layout::ANY
+                               });
+            shapeSource->allocate();
+            addConstantData("weights", shapeSource, ieLayer);
+        }
+        return Ptr<BackendNode>(new InfEngineBackendNode(ieLayer));
+    }
+#endif
+#endif
 
 
 #ifdef HAVE_DNN_NGRAPH

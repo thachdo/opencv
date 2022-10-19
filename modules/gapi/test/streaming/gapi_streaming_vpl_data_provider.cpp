@@ -16,7 +16,6 @@
 #include "streaming/onevpl/demux/async_mfp_demux_data_provider.hpp"
 #include "streaming/onevpl/source_priv.hpp"
 
-#ifdef _WIN32
 namespace opencv_test
 {
 namespace
@@ -74,9 +73,9 @@ TEST_P(OneVPL_Source_MFPAsyncDispatcherTest, open_and_decode_file)
     EXPECT_TRUE(dd_result);
 
     // initialize MFX
-    mfxLoader mfx = MFXLoad();
+    mfxLoader mfx_handle = MFXLoad();
 
-    mfxConfig cfg_inst_0 = MFXCreateConfig(mfx);
+    mfxConfig cfg_inst_0 = MFXCreateConfig(mfx_handle);
     EXPECT_TRUE(cfg_inst_0);
     mfxVariant mfx_param_0;
     mfx_param_0.Type = MFX_VARIANT_TYPE_U32;
@@ -86,7 +85,7 @@ TEST_P(OneVPL_Source_MFPAsyncDispatcherTest, open_and_decode_file)
 
     // create MFX session
     mfxSession mfx_session{};
-    mfxStatus sts = MFXCreateSession(mfx, 0, &mfx_session);
+    mfxStatus sts = MFXCreateSession(mfx_handle, 0, &mfx_session);
     EXPECT_EQ(MFX_ERR_NONE, sts);
 
     // create proper bitstream
@@ -113,7 +112,7 @@ TEST_P(OneVPL_Source_MFPAsyncDispatcherTest, open_and_decode_file)
 
     MFXVideoDECODE_Close(mfx_session);
     MFXClose(mfx_session);
-    MFXUnload(mfx);
+    MFXUnload(mfx_handle);
 }
 
 
@@ -300,5 +299,4 @@ TEST(OneVPL_Source_MFPAsyncDemux, produce_consume) {
 }
 } // namespace opencv_test
 
-#endif // _WIN32
 #endif // HAVE_ONEVPL

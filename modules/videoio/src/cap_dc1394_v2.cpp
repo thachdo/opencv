@@ -102,7 +102,7 @@ public:
     virtual void close();
 
     virtual double getProperty(int) const CV_OVERRIDE;
-    virtual bool setProperty(int, double) CV_OVERRIDE;
+    virtual bool setProperty(int, int) CV_OVERRIDE;
     virtual bool grabFrame() CV_OVERRIDE;
     virtual IplImage* retrieveFrame(int) CV_OVERRIDE;
     virtual int getCaptureDomain() CV_OVERRIDE { return CV_CAP_DC1394; }
@@ -553,7 +553,7 @@ double CvCaptureCAM_DC1394_v2_CPP::getProperty(int propId) const
     return -1; // the value of the feature can be 0, so returning 0 as an error is wrong
 }
 
-bool CvCaptureCAM_DC1394_v2_CPP::setProperty(int propId, double value)
+bool CvCaptureCAM_DC1394_v2_CPP::setProperty(int propId, int value)
 {
     switch (propId)
     {

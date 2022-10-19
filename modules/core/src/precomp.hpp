@@ -365,7 +365,6 @@ extern CV_EXPORTS
 bool __termination;  // skip some cleanups, because process is terminating
                      // (for example, if ExitProcess() was already called)
 
-CV_EXPORTS
 cv::Mutex& getInitializationMutex();
 
 /// @brief Returns timestamp in nanoseconds since program launch

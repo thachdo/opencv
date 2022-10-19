@@ -168,7 +168,7 @@ double VideoCapture_LibRealsense::getCommonProperty(int propIdx) const
     return propValue;
 }
 
-bool VideoCapture_LibRealsense::setProperty(int, double)
+bool VideoCapture_LibRealsense::setProperty(int, int)
 {
     bool isSet = false;
     return isSet;

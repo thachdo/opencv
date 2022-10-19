@@ -13,7 +13,6 @@ project(openjpeg C)
 
 ocv_warnings_disable(CMAKE_C_FLAGS
     -Wimplicit-const-int-float-conversion  # clang
-    -Wunused-but-set-variable # clang15
 )
 
 #-----------------------------------------------------------------------------

@@ -11,7 +11,6 @@
 #include "streaming/onevpl/accelerators/accel_policy_cpu.hpp"
 #include "streaming/onevpl/accelerators/surface/cpu_frame_adapter.hpp"
 #include "streaming/onevpl/accelerators/surface/surface.hpp"
-#include "streaming/onevpl/utils.hpp"
 #include "logger.hpp"
 
 #ifdef _WIN32
@@ -23,7 +22,7 @@ namespace gapi {
 namespace wip {
 namespace onevpl {
 namespace utils {
-static mfxU32 GetSurfaceSize_(mfxU32 FourCC, mfxU32 width, mfxU32 height) {
+mfxU32 GetSurfaceSize_(mfxU32 FourCC, mfxU32 width, mfxU32 height) {
     mfxU32 nbytes = 0;
 
     mfxU32 half_width = width / 2;
@@ -48,10 +47,10 @@ static mfxU32 GetSurfaceSize_(mfxU32 FourCC, mfxU32 width, mfxU32 height) {
     return nbytes;
 }
 
-static surface_ptr_t create_surface_RGB4_(mfxFrameInfo frameInfo,
-                                          std::shared_ptr<void> out_buf_ptr,
-                                          size_t out_buf_ptr_offset,
-                                          size_t out_buf_size)
+surface_ptr_t create_surface_RGB4_(mfxFrameInfo frameInfo,
+                                   std::shared_ptr<void> out_buf_ptr,
+                                   size_t out_buf_ptr_offset,
+                                   size_t out_buf_size)
 {
     mfxU8* buf = reinterpret_cast<mfxU8*>(out_buf_ptr.get());
     mfxU16 surfW = frameInfo.Width * 4;
@@ -81,10 +80,10 @@ static surface_ptr_t create_surface_RGB4_(mfxFrameInfo frameInfo,
     return Surface::create_surface(std::move(handle), out_buf_ptr);
 }
 
-static surface_ptr_t create_surface_other_(mfxFrameInfo frameInfo,
-                                           std::shared_ptr<void> out_buf_ptr,
-                                           size_t out_buf_ptr_offset,
-                                           size_t out_buf_size)
+surface_ptr_t create_surface_other_(mfxFrameInfo frameInfo,
+                                    std::shared_ptr<void> out_buf_ptr,
+                                    size_t out_buf_ptr_offset,
+                                    size_t out_buf_size)
 {
     mfxU8* buf = reinterpret_cast<mfxU8*>(out_buf_ptr.get());
     mfxU16 surfH = frameInfo.Height;
@@ -156,12 +155,8 @@ VPLCPUAccelerationPolicy::create_surface_pool(size_t pool_size, size_t surface_s
     GAPI_LOG_DEBUG(nullptr, "page size: " << page_size_bytes << ", preallocated_raw_bytes: " << preallocated_raw_bytes);
     preallocated_pool_memory_ptr = _aligned_malloc(preallocated_raw_bytes, page_size_bytes);
 #else
-    int err = posix_memalign(&preallocated_pool_memory_ptr, page_size_bytes, preallocated_raw_bytes);
-    if (err) {
-        GAPI_LOG_WARNING(nullptr, "Cannot allocate aligned memory, size: " << preallocated_raw_bytes <<
-                                  ", alignment: " << page_size_bytes << ", error: " <<
-                                  strerror(err));
-    }
+    GAPI_Assert(false && "Compatibility is not tested for systems differ than \"_WIN32\". "
+                         "Please feel free to set it up under OPENCV contribution policy");
 #endif
 
     if (!preallocated_pool_memory_ptr) {
@@ -178,9 +173,8 @@ VPLCPUAccelerationPolicy::create_surface_pool(size_t pool_size, size_t surface_s
         GAPI_LOG_INFO(nullptr, "Released workspace memory: " << ptr);
         ptr = nullptr;
 #else
-        GAPI_LOG_INFO(nullptr, "Workspace memory to release: " << ptr);
-        free(ptr);
-        ptr = nullptr;
+        GAPI_Assert(false && "Not implemented for systems differ than \"_WIN32\". "
+                             "Please feel free to set it up under OPENCV contribution policy");
 #endif
 
         });
@@ -216,27 +210,30 @@ VPLCPUAccelerationPolicy::create_surface_pool(size_t pool_size, size_t surface_s
 }
 
 VPLCPUAccelerationPolicy::pool_key_t
-VPLCPUAccelerationPolicy::create_surface_pool(const mfxFrameAllocRequest& alloc_request, mfxFrameInfo& info) {
+VPLCPUAccelerationPolicy::create_surface_pool(const mfxFrameAllocRequest& alloc_request, mfxVideoParam& param) {
 
     // External (application) allocation of decode surfaces
     GAPI_LOG_DEBUG(nullptr, "Query mfxFrameAllocRequest.NumFrameSuggested: " << alloc_request.NumFrameSuggested <<
                             ", mfxFrameAllocRequest.Type: " << alloc_request.Type);
 
-    mfxU32 singleSurfaceSize = utils::GetSurfaceSize_(info.FourCC,
-                                                      info.Width,
-                                                      info.Height);
+    mfxU32 singleSurfaceSize = utils::GetSurfaceSize_(param.mfx.FrameInfo.FourCC,
+                                                      param.mfx.FrameInfo.Width,
+                                                      param.mfx.FrameInfo.Height);
     if (!singleSurfaceSize) {
-        throw std::runtime_error("Cannot determine surface size from frame: " +
-                                 mfx_frame_info_to_string(info));
+        throw std::runtime_error("Cannot determine surface size for: fourCC: " +
+                                 std::to_string(param.mfx.FrameInfo.FourCC) +
+                                 ", width: " + std::to_string(param.mfx.FrameInfo.Width) +
+                                 ", height: " + std::to_string(param.mfx.FrameInfo.Height));
     }
 
+    const auto &frameInfo = param.mfx.FrameInfo;
     auto surface_creator =
-            [&info] (std::shared_ptr<void> out_buf_ptr, size_t out_buf_ptr_offset,
+            [&frameInfo] (std::shared_ptr<void> out_buf_ptr, size_t out_buf_ptr_offset,
                           size_t out_buf_size) -> surface_ptr_t {
-                return (info.FourCC == MFX_FOURCC_RGB4) ?
-                        utils::create_surface_RGB4_(info, out_buf_ptr, out_buf_ptr_offset,
+                return (frameInfo.FourCC == MFX_FOURCC_RGB4) ?
+                        utils::create_surface_RGB4_(frameInfo, out_buf_ptr, out_buf_ptr_offset,
                                                     out_buf_size) :
-                        utils::create_surface_other_(info, out_buf_ptr, out_buf_ptr_offset,
+                        utils::create_surface_other_(frameInfo, out_buf_ptr, out_buf_ptr_offset,
                                                      out_buf_size);};
 
     return create_surface_pool(alloc_request.NumFrameSuggested,
@@ -277,7 +274,7 @@ size_t VPLCPUAccelerationPolicy::get_surface_count(pool_key_t key) const {
 }
 
 cv::MediaFrame::AdapterPtr VPLCPUAccelerationPolicy::create_frame_adapter(pool_key_t key,
-                                                                          const FrameConstructorArgs &params) {
+                                                                          mfxFrameSurface1* surface) {
     auto pool_it = pool_table.find(key);
     if (pool_it == pool_table.end()) {
         std::stringstream ss;
@@ -288,8 +285,7 @@ cv::MediaFrame::AdapterPtr VPLCPUAccelerationPolicy::create_frame_adapter(pool_k
     }
 
     pool_t& requested_pool = pool_it->second;
-    return cv::MediaFrame::AdapterPtr{new VPLMediaFrameCPUAdapter(requested_pool.find_by_handle(params.assoc_surface),
-                                                                  params.assoc_handle)};
+    return cv::MediaFrame::AdapterPtr{new VPLMediaFrameCPUAdapter(requested_pool.find_by_handle(surface))};
 }
 } // namespace onevpl
 } // namespace wip

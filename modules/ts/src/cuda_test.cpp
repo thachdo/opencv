@@ -91,13 +91,7 @@ namespace cvtest
 
     GpuMat createMat(Size size, int type, bool useRoi)
     {
-        Size size0; Point ofs;
-        return createMat(size, type, size0, ofs, useRoi);
-    }
-
-    GpuMat createMat(Size size, int type, Size& size0, Point& ofs, bool useRoi)
-    {
-        size0 = size;
+        Size size0 = size;
 
         if (useRoi)
         {
@@ -106,10 +100,9 @@ namespace cvtest
         }
 
         GpuMat d_m(size0, type);
-        if (size0 != size) {
-            ofs = Point((size0.width - size.width) / 2, (size0.height - size.height) / 2);
-            d_m = d_m(Rect(ofs, size));
-        }
+
+        if (size0 != size)
+            d_m = d_m(Rect((size0.width - size.width) / 2, (size0.height - size.height) / 2, size.width, size.height));
 
         return d_m;
     }

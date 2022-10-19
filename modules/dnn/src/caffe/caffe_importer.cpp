@@ -53,8 +53,6 @@
 #include "caffe_io.hpp"
 #endif
 
-#include <opencv2/core/utils/fp_control_utils.hpp>
-
 namespace cv {
 namespace dnn {
 CV__DNN_INLINE_NS_BEGIN
@@ -90,8 +88,6 @@ MatShape parseBlobShape(const caffe::BlobShape& _input_shape)
 
 class CaffeImporter
 {
-    FPDenormalsIgnoreHintScope fp_denormals_ignore_scope;
-
     caffe::NetParameter net;
     caffe::NetParameter netBinary;
 

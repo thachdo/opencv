@@ -180,7 +180,7 @@ namespace cv {
     }
 
 
-    bool VideoCapture_WinRT::setProperty(int property_id, double value)
+    bool VideoCapture_WinRT::setProperty(int property_id, int value)
     {
         switch (property_id)
         {

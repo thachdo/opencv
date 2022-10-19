@@ -19,12 +19,12 @@ namespace gapi {
 namespace wip {
 namespace gst {
 
-class GAPI_EXPORTS_W GStreamerPipeline
+class GAPI_EXPORTS GStreamerPipeline
 {
 public:
     class Priv;
 
-    GAPI_WRAP explicit GStreamerPipeline(const std::string& pipeline);
+    explicit GStreamerPipeline(const std::string& pipeline);
     IStreamSource::Ptr getStreamingSource(const std::string& appsinkName,
                                           const GStreamerSource::OutputType outputType =
                                               GStreamerSource::OutputType::MAT);
@@ -39,18 +39,6 @@ protected:
 } // namespace gst
 
 using GStreamerPipeline = gst::GStreamerPipeline;
-
-// NB: Function for using from python
-// FIXME: a separate function is created due to absence of wrappers for `shared_ptr<> `
-// Ideally would be to wrap the `GStreamerPipeline::getStreamingSource()` method as is
-GAPI_EXPORTS_W cv::Ptr<IStreamSource>
-inline get_streaming_source(cv::Ptr<GStreamerPipeline>& pipeline,
-                            const std::string& appsinkName,
-                            const GStreamerSource::OutputType outputType
-                                = GStreamerSource::OutputType::MAT)
-{
-    return pipeline->getStreamingSource(appsinkName, outputType);
-}
 
 } // namespace wip
 } // namespace gapi

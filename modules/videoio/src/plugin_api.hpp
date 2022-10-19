@@ -86,7 +86,7 @@ struct OpenCV_VideoIO_Plugin_API_v0_0_api_entries
 
     @note API-CALL 5, API-Version == 0
      */
-    CvResult (CV_API_CALL *Capture_setProperty)(CvPluginCapture handle, int prop, double val);
+    CvResult (CV_API_CALL *Capture_setProperty)(CvPluginCapture handle, int prop, int val);
 
     /** @brief Grab frame
 
@@ -149,7 +149,7 @@ struct OpenCV_VideoIO_Plugin_API_v0_0_api_entries
 
     @note API-CALL 11, API-Version == 0
      */
-    CvResult (CV_API_CALL *Writer_setProperty)(CvPluginWriter handle, int prop, double val);
+    CvResult (CV_API_CALL *Writer_setProperty)(CvPluginWriter handle, int prop, int val);
 
     /** @brief Write frame
 
